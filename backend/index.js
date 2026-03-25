@@ -154,4 +154,12 @@ app.post('/api/attendance', async (req, res) => {
   }
 });
 
+// Serve static files from the frontend/dist directory
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// Wildcard route to serve index.html for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+});
+
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
