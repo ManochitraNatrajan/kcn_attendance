@@ -1,156 +1,164 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs').promises;
 const path = require('path');
+const mongoose = require('mongoose');
+
+const User = require('./models/User');
+const Attendance = require('./models/Attendance');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const DATA_FILE = path.join(__dirname, 'data.json');
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/finance-attendance';
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-async function readData() {
-  try {
-    const data = await fs.readFile(DATA_FILE, 'utf8');
-    const parsed = JSON.parse(data);
-    if (!parsed.users) {
-      parsed.users = [{ id: "1", role: "admin", name: "Harrish", email: "mano@gmail.com", password: "admin", employeeId: "kcn-slm" }];
-      if (parsed.employees) {
-        parsed.employees.forEach(e => parsed.users.push({ ...e, role: 'employee', password: e.employeeId.toLowerCase(), email: e.email || `${e.employeeId.toLowerCase()}@kcn.com` }));
-        delete parsed.employees;
-      }
-      await writeData(parsed);
+mongoose.connect(MONGO_URI)
+  .then(async () => {
+    console.log('Connected to MongoDB');
+    // Ensure default admin exists based on earlier data structure
+    const adminExists = await User.findOne({ email: 'harrishn052@gmail.com' });
+    if (!adminExists) {
+      await User.create({
+        role: 'admin',
+        name: 'Harrish',
+        email: 'harrishn052@gmail.com',
+        password: 'Harrish123',
+        employeeId: 'KCN_SLM'
+      });
+      console.log('Default admin created in DB');
     }
-    if (!parsed.attendance) parsed.attendance = [];
-    return parsed;
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      const defaultData = { 
-        users: [
-          { id: "1", role: "admin", name: "Harrish", email: "mano@gmail.com", password: "admin", employeeId: "kcn-slm" }
-        ], 
-        attendance: [] 
-      };
-      await writeData(defaultData);
-      return defaultData;
-    }
-    throw error;
-  }
-}
-
-async function writeData(data) {
-  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
-readData().then(() => console.log('Data file loaded/created'));
+  })
+  .catch(err => console.error('MongoDB connection error:', err));
 
 app.post('/api/login', async (req, res) => {
-  const { email, password, employeeId } = req.body;
-  const data = await readData();
-  const user = data.users.find(u => 
-    u.email.toLowerCase() === email.toLowerCase() && 
-    u.password === password && 
-    u.employeeId.toUpperCase() === employeeId.toUpperCase()
-  );
-  
-  if (user) {
-    res.json({ success: true, user });
-  } else {
-    res.status(401).json({ success: false, message: 'Invalid credentials. Check Email, Password, and ID.' });
+  try {
+    const { email, password, employeeId } = req.body;
+    // Database matching mimicking previous case logic
+    const user = await User.findOne({
+      email: new RegExp(`^${email}$`, 'i'),
+      password: password,
+      employeeId: new RegExp(`^${employeeId}$`, 'i')
+    });
+    
+    if (user) {
+      res.json({ success: true, user: { ...user.toObject(), id: user._id.toString() } });
+    } else {
+      res.status(401).json({ success: false, message: 'Invalid credentials. Check Email, Password, and ID.' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 app.get('/api/employees', async (req, res) => {
-  const data = await readData();
-  res.json(data.users);
+  try {
+    const users = await User.find();
+    res.json(users.map(u => ({ ...u.toObject(), id: u._id.toString() })));
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 app.post('/api/employees', async (req, res) => {
-  const newEmp = { id: Date.now().toString(), role: 'employee', ...req.body };
-  const data = await readData();
-  
-  if (data.users.some(u => u.email === newEmp.email || u.employeeId === newEmp.employeeId)) {
-    return res.status(400).json({ message: 'Employee with this Email or ID already exists.' });
-  }
+  try {
+    const newEmp = req.body;
+    const exists = await User.findOne({
+      $or: [
+        { email: newEmp.email },
+        { employeeId: newEmp.employeeId }
+      ]
+    });
+    
+    if (exists) {
+      return res.status(400).json({ message: 'Employee with this Email or ID already exists.' });
+    }
 
-  data.users.push(newEmp);
-  await writeData(data);
-  res.status(201).json(newEmp);
+    const user = await User.create({ role: 'employee', ...newEmp });
+    res.status(201).json({ ...user.toObject(), id: user._id.toString() });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
 
 app.put('/api/employees/:id', async (req, res) => {
-  const { id } = req.params;
-  const data = await readData();
-  
-  const index = data.users.findIndex(u => u.id === id);
-  if (index === -1) return res.status(404).json({ message: 'User not found' });
-  
-  data.users[index] = { ...data.users[index], ...req.body };
-  await writeData(data);
-  res.json(data.users[index]);
+  try {
+    const { id } = req.params;
+    const user = await User.findByIdAndUpdate(id, req.body, { new: true });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ ...user.toObject(), id: user._id.toString() });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 app.delete('/api/employees/:id', async (req, res) => {
-  const { id } = req.params;
-  const data = await readData();
-  
-  const userToDelete = data.users.find(e => e.id === id);
-  if (userToDelete) {
-    data.attendance = data.attendance.filter(a => a.employeeId !== userToDelete.employeeId);
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (user) {
+      await Attendance.deleteMany({ employeeId: user.employeeId });
+      await User.findByIdAndDelete(id);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
-  
-  data.users = data.users.filter(e => e.id !== id);
-  await writeData(data);
-  res.json({ success: true });
 });
 
 app.get('/api/attendance', async (req, res) => {
-  const data = await readData();
-  res.json(data.attendance);
+  try {
+    const attendance = await Attendance.find();
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 app.get('/api/attendance/stats', async (req, res) => {
-  const data = await readData();
-  const today = new Date().toISOString().split('T')[0];
-  const emps = data.users; // Count everyone, including admin.
-  const todayAttendance = data.attendance.filter(a => a.date === today);
-  
-  const present = todayAttendance.length;
-  const absent = emps.length - present;
-  
-  res.json({
-    total: emps.length,
-    present,
-    absent: absent < 0 ? 0 : absent
-  });
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const empsCount = await User.countDocuments();
+    const presentCount = await Attendance.countDocuments({ date: today });
+    
+    const absent = empsCount - presentCount;
+    res.json({
+      total: empsCount,
+      present: presentCount,
+      absent: absent < 0 ? 0 : absent
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 app.post('/api/attendance', async (req, res) => {
-  const { employeeId, type, timestamp } = req.body;
-  const data = await readData();
-  const date = new Date(timestamp).toISOString().split('T')[0];
-  
-  let record = data.attendance.find(a => a.employeeId === employeeId && a.date === date);
+  try {
+    const { employeeId, type, timestamp } = req.body;
+    const date = new Date(timestamp).toISOString().split('T')[0];
+    
+    let record = await Attendance.findOne({ employeeId, date });
 
-  if (type === 'check-in') {
-    if (record) return res.status(400).json({ message: 'Already checked in today' });
-    const newRecord = {
-      id: Date.now().toString(),
-      employeeId,
-      date,
-      checkInTime: timestamp,
-      status: 'Present'
-    };
-    data.attendance.push(newRecord);
-    await writeData(data);
-    return res.status(201).json(newRecord);
-  } else if (type === 'check-out') {
-    if (!record) return res.status(400).json({ message: 'Must check in first' });
-    if (record.checkOutTime) return res.status(400).json({ message: 'Already checked out today' });
-    record.checkOutTime = timestamp;
-    await writeData(data);
-    return res.json(record);
+    if (type === 'check-in') {
+      if (record) return res.status(400).json({ message: 'Already checked in today' });
+      const newRecord = await Attendance.create({
+        employeeId,
+        date,
+        checkInTime: timestamp,
+        status: 'Present'
+      });
+      return res.status(201).json(newRecord);
+    } else if (type === 'check-out') {
+      if (!record) return res.status(400).json({ message: 'Must check in first' });
+      if (record.checkOutTime) return res.status(400).json({ message: 'Already checked out today' });
+      
+      record.checkOutTime = timestamp;
+      await record.save();
+      return res.json(record);
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -158,7 +166,7 @@ app.post('/api/attendance', async (req, res) => {
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Wildcard route to serve index.html for client-side routing
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
 });
 
