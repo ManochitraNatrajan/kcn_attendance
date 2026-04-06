@@ -13,9 +13,9 @@ const AdminPanel = ({ user }) => {
   const [todayRecord, setTodayRecord] = useState(null);
   
   const [showAdd, setShowAdd] = useState(false);
-  const [newEmp, setNewEmp] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
+  const [newEmp, setNewEmp] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee', hourlyRate: 0 });
   const [editingEmp, setEditingEmp] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
+  const [editForm, setEditForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee', hourlyRate: 0 });
 
   // Salary Modal State
   const [selectedEmp, setSelectedEmp] = useState(null);
@@ -72,7 +72,7 @@ const AdminPanel = ({ user }) => {
   const handleEditClick = (emp, e) => {
     e.stopPropagation();
     setEditingEmp(emp.id);
-    setEditForm({ name: emp.name, employeeId: emp.employeeId, email: emp.email, password: emp.password, role: emp.role || 'employee' });
+    setEditForm({ name: emp.name, employeeId: emp.employeeId, email: emp.email, password: emp.password, role: emp.role || 'employee', hourlyRate: emp.hourlyRate || 0 });
   };
 
   const handleUpdateEmployee = async (e) => {
@@ -98,26 +98,31 @@ const AdminPanel = ({ user }) => {
   const isCheckedIn = todayRecord && !todayRecord.checkOutTime;
   const isCheckedOut = todayRecord && todayRecord.checkOutTime;
 
-  // Salary Calculator Logic
-  const calculateSalary = (empId, targetMonth) => {
-    const empRecords = history.filter(h => h.employeeId === empId && h.date.startsWith(targetMonth));
-    let fullDays = 5; // Base 5 Sundays inherently counted as full present days
-    let halfDays = 0;
+  // Salary Calculator Logic (Updated to Hourly Rule)
+  const calculateSalary = (emp, targetMonth) => {
+    const empRecords = history.filter(h => h.employeeId === emp.employeeId && h.date.startsWith(targetMonth));
     let totalHourly = 0;
     let absoluteTotalHours = 0;
     
     empRecords.forEach(r => {
-      if (r.checkInTime && r.checkOutTime) {
-        const diff = (new Date(r.checkOutTime) - new Date(r.checkInTime)) / (1000 * 60 * 60);
+      // Use saved workedHours/dailySalary if available, else calculate
+      if (r.workedHours !== undefined) {
+        absoluteTotalHours += r.workedHours;
+        totalHourly += r.dailySalary;
+      } else if (r.checkInTime && r.checkOutTime) {
+        const start = new Date(r.checkInTime);
+        let end = new Date(r.checkOutTime);
+        const sixPM = new Date(end);
+        sixPM.setHours(18, 0, 0, 0);
+        if (end > sixPM) end = sixPM;
+
+        const diff = Math.max(0, (end - start) / (1000 * 60 * 60));
         absoluteTotalHours += diff;
-        const rounded = Math.round(diff);
-        if (rounded >= 8) fullDays++;
-        else if (rounded === 4 || rounded === 5) halfDays++;
-        else if (rounded > 0) totalHourly += rounded;
+        totalHourly += diff * (emp.hourlyRate || 0);
       }
     });
 
-    return { records: empRecords, fullDays, halfDays, totalHourly: totalHourly.toFixed(1), absoluteTotalHours: absoluteTotalHours.toFixed(1) };
+    return { records: empRecords, totalSalary: totalHourly.toFixed(2), absoluteTotalHours: absoluteTotalHours.toFixed(1) };
   };
 
   const getStatusLabel = (rec) => {
@@ -271,6 +276,10 @@ const AdminPanel = ({ user }) => {
                     <label>Email Address</label>
                     <input required type="email" value={newEmp.email} onChange={e => setNewEmp({...newEmp, email: e.target.value})} placeholder="john@kcn.com" />
                   </div>
+                  <div className="input-group">
+                    <label>Hourly Rate (₹)</label>
+                    <input required type="number" value={newEmp.hourlyRate} onChange={e => setNewEmp({...newEmp, hourlyRate: parseFloat(e.target.value) || 0})} placeholder="100" />
+                  </div>
                   <div className="input-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Initial Password</label>
                     <input required type="text" value={newEmp.password} onChange={e => setNewEmp({...newEmp, password: e.target.value})} placeholder="password123" />
@@ -308,6 +317,10 @@ const AdminPanel = ({ user }) => {
                          <div className="input-group">
                            <label>Email Address</label>
                            <input required type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
+                         </div>
+                         <div className="input-group">
+                           <label>Hourly Rate (₹)</label>
+                           <input required type="number" value={editForm.hourlyRate} onChange={e => setEditForm({...editForm, hourlyRate: parseFloat(e.target.value) || 0})} />
                          </div>
                          <div className="input-group" style={{ gridColumn: '1 / -1' }}>
                            <label>Password</label>
@@ -375,36 +388,33 @@ const AdminPanel = ({ user }) => {
                 </div>
               </div>
 
-              {(() => {
-                 const sal = calculateSalary(selectedEmp.employeeId, modalMonth);
-                 return (
-                   <div>
-                     <h3 className="mb-4" style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid var(--border)', paddingBottom: '12px' }}><Calculator size={22} color="var(--primary)"/> Hours & Salary Breakdown</h3>
-                     
-                     <div className="grid-cols-3 mb-6" style={{ gap: '20px' }}>
-                       <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
-                         <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--success)' }}>{sal.fullDays}</div>
-                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold', marginBottom: '4px' }}>FULL DAYS ➔ 8h Salary</div>
-                         <div style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>(Includes +5 Sundays)</div>
-                       </div>
-                       <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
-                         <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--secondary-dark)' }}>{sal.halfDays}</div>
-                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>HALF DAYS ➔ 4h Salary</div>
-                       </div>
-                       <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
-                         <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--primary)' }}>{sal.totalHourly}</div>
-                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>PARTIAL HOURS ➔ Hourly Salary</div>
-                       </div>
-                     </div>
-                     
-                     <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--primary)', color: 'white', padding: '20px 32px', borderRadius: '12px', marginTop: '32px', marginBottom: '32px', alignItems: 'center', boxShadow: '0 4px 12px rgba(248, 113, 113, 0.2)' }}>
-                       <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Total Cumulative Hours Logged This Month</div>
-                       <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>{sal.absoluteTotalHours} <span style={{ fontSize: '1.2rem', fontWeight: '600', opacity: 0.8 }}>hrs</span></div>
-                     </div>
+               {(() => {
+                  const sal = calculateSalary(selectedEmp, modalMonth);
+                  return (
+                    <div>
+                      <h3 className="mb-4" style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid var(--border)', paddingBottom: '12px' }}><Calculator size={22} color="var(--primary)"/> Hours & Salary Breakdown</h3>
+                      
+                      <div className="mb-6">
+                        <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                          <div style={{ fontSize: '1.2rem', color: 'var(--text-muted)', fontWeight: 'bold', marginBottom: '8px' }}>HOURLY RATE</div>
+                          <div style={{ fontSize: '3rem', fontWeight: '900', color: 'var(--primary)' }}>₹{selectedEmp.hourlyRate || 0}</div>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '20px', marginBottom: '32px' }}>
+                        <div style={{ flex: 1, background: 'var(--primary)', color: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(248, 113, 113, 0.2)' }}>
+                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Total Hours Logged</div>
+                          <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>{sal.absoluteTotalHours} <span style={{ fontSize: '1.2rem' }}>hrs</span></div>
+                        </div>
+                        <div style={{ flex: 1, background: 'var(--success)', color: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}>
+                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Total Salary This Month</div>
+                          <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>₹{sal.totalSalary}</div>
+                        </div>
+                      </div>
 
-                     <div style={{ background: '#FEF2F2', padding: '20px', borderRadius: '12px', color: '#991B1B', fontWeight: '500', fontSize: '1rem', borderLeft: '4px solid var(--danger)', marginBottom: '32px' }}>
-                       <strong>Salary Calculation Engine:</strong> 8+ hours = Full Day Wage. 4-5 hours = Half Day Wage. Other variations = Calculated directly as precise Hourly wages (e.g. 3 hours present, 6 hours present).
-                     </div>
+                      <div style={{ background: '#EFF6FF', padding: '20px', borderRadius: '12px', color: '#1E40AF', fontWeight: '500', fontSize: '1rem', borderLeft: '4px solid #3B82F6', marginBottom: '32px' }}>
+                        <strong>Salary Policy:</strong> Salary is calculated based on exact worked hours multiplied by the employee's hourly rate. Calculations are capped at 6:00 PM daily.
+                      </div>
 
                      <h3 className="mb-4">Individual Attendance Logs</h3>
                      <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>

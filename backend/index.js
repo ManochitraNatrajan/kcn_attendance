@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
+const cron = require('node-cron');
 
 const User = require('./models/User');
 const Attendance = require('./models/Attendance');
@@ -31,6 +32,53 @@ mongoose.connect(MONGO_URI)
     }
   })
   .catch(err => console.error('MongoDB connection error:', err));
+
+const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate) => {
+  const start = new Date(checkIn);
+  let end = new Date(checkOut);
+  
+  // Cap at 6:00 PM (18:00) for salary calculation
+  const sixPM = new Date(end);
+  sixPM.setHours(18, 0, 0, 0);
+  if (end > sixPM) end = sixPM;
+
+  const diffMs = end - start;
+  const hours = Math.max(0, diffMs / (1000 * 60 * 60)); // Handle cases where checkout < checkin (though shouldn't happen)
+  const roundedHours = Math.round(hours * 100) / 100; // 2 decimal places
+  const salary = Math.round(roundedHours * (hourlyRate || 0) * 100) / 100;
+  
+  return { hours: roundedHours, salary };
+};
+
+// Cron Job: Auto-checkout at 6:00 PM daily
+cron.schedule('0 18 * * *', async () => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const timestamp = new Date();
+    timestamp.setHours(18, 0, 0, 0); // Exactly 6 PM
+    const isoTimestamp = timestamp.toISOString();
+
+    const activeRecords = await Attendance.find({ 
+      date: today, 
+      checkOutTime: { $exists: false },
+      status: 'Present'
+    });
+
+    console.log(`[Cron] Running auto-checkout for ${activeRecords.length} employees at 6:00 PM`);
+
+    for (const record of activeRecords) {
+      const user = await User.findOne({ employeeId: record.employeeId });
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.hourlyRate);
+      
+      record.checkOutTime = isoTimestamp;
+      record.workedHours = hours;
+      record.dailySalary = salary;
+      await record.save();
+    }
+  } catch (error) {
+    console.error('[Cron] Error in auto-checkout:', error);
+  }
+});
 
 app.post('/api/login', async (req, res) => {
   try {
@@ -153,7 +201,12 @@ app.post('/api/attendance', async (req, res) => {
       if (!record) return res.status(400).json({ message: 'Must check in first' });
       if (record.checkOutTime) return res.status(400).json({ message: 'Already checked out today' });
       
+      const user = await User.findOne({ employeeId });
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, timestamp, user?.hourlyRate);
+
       record.checkOutTime = timestamp;
+      record.workedHours = hours;
+      record.dailySalary = salary;
       await record.save();
       return res.json(record);
     }
