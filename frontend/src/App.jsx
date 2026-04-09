@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import AdminPanel from './components/AdminPanel';
+import { api } from './utils/api';
 import './index.css';
 
 function App() {
@@ -19,6 +20,30 @@ function App() {
     setUser(null);
     sessionStorage.removeItem('kcn_user');
   };
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const now = new Date();
+    const sixPM = new Date();
+    sixPM.setHours(18, 0, 0, 0);
+
+    const msUntilSixPM = sixPM.getTime() - now.getTime();
+    
+    // Only schedule if 6 PM is in the future for today
+    if (msUntilSixPM > 0) {
+      const timeout = setTimeout(async () => {
+        try {
+          await api.post('/attendance/auto-checkout', { employeeId: user.employeeId });
+        } catch (e) {
+          console.error('Auto-checkout failed', e);
+        }
+        handleLogout();
+      }, msUntilSixPM);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [user]);
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)' }}>

@@ -45,8 +45,10 @@ const EmployeeDashboard = ({ user }) => {
     }
   };
 
+  const isPastSix = new Date().getHours() >= 18;
   const isCheckedIn = todayRecord && !todayRecord.checkOutTime;
   const isCheckedOut = todayRecord && todayRecord.checkOutTime;
+  const isAbsent = !todayRecord && isPastSix;
 
   if (loading) return <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)' }}>Loading Dashboard...</div>;
 
@@ -94,10 +96,16 @@ const EmployeeDashboard = ({ user }) => {
               <p className="text-muted mb-4" style={{ marginBottom: '32px' }}>Verify your presence for {new Date().toLocaleDateString()}</p>
 
               <div style={{ maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {!isCheckedIn && !isCheckedOut && (
+                {!isCheckedIn && !isCheckedOut && !isPastSix && (
                   <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', fontSize: '1.25rem', padding: '20px' }} onClick={() => handleCheck('check-in')} disabled={submitting}>
                     <Clock size={24} style={{ marginRight: '10px' }}/> CHECK IN NOW
                   </button>
+                )}
+
+                {isAbsent && (
+                  <div style={{ background: '#FEF2F2', border: '2px solid #F87171', padding: '24px', borderRadius: '12px', color: '#991B1B', fontWeight: '700', fontSize: '1.2rem' }}>
+                    Check-in is closed for today. You are marked as Absent.
+                  </div>
                 )}
 
                 {isCheckedIn && (

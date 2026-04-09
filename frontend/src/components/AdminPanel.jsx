@@ -95,8 +95,10 @@ const AdminPanel = ({ user }) => {
     }
   };
 
+  const isPastSix = new Date().getHours() >= 18;
   const isCheckedIn = todayRecord && !todayRecord.checkOutTime;
   const isCheckedOut = todayRecord && todayRecord.checkOutTime;
+  const isAbsent = !todayRecord && isPastSix;
 
   // Salary Calculator Logic (Updated to Hourly Rule)
   const calculateSalary = (emp, targetMonth) => {
@@ -105,21 +107,37 @@ const AdminPanel = ({ user }) => {
     let absoluteTotalHours = 0;
     
     empRecords.forEach(r => {
-      // Use saved workedHours/dailySalary if available, else calculate
-      if (r.workedHours !== undefined) {
-        absoluteTotalHours += r.workedHours;
-        totalHourly += r.dailySalary;
-      } else if (r.checkInTime && r.checkOutTime) {
-        const start = new Date(r.checkInTime);
-        let end = new Date(r.checkOutTime);
-        const sixPM = new Date(end);
-        sixPM.setHours(18, 0, 0, 0);
-        if (end > sixPM) end = sixPM;
+      let roundedHrs = 0;
+      let actualMinutes = 0;
+      let actualTimeStr = "0h 0m";
 
-        const diff = Math.max(0, (end - start) / (1000 * 60 * 60));
-        absoluteTotalHours += diff;
-        totalHourly += diff * (emp.hourlyRate || 0);
+      if (r.checkInTime && r.checkOutTime) {
+          const start = new Date(r.checkInTime);
+          let end = new Date(r.checkOutTime);
+
+          const sixPM = new Date(start);
+          sixPM.setHours(18, 0, 0, 0);
+          if (end > sixPM) end = sixPM;
+          
+          const diffMs = end - start;
+          if (diffMs > 0) {
+              actualMinutes = Math.floor(diffMs / (1000 * 60));
+              const baseHours = Math.floor(actualMinutes / 60);
+              const remainder = actualMinutes % 60;
+              actualTimeStr = `${baseHours}h ${remainder}m`;
+              
+              let fraction = 0.00;
+              if (remainder <= 14) fraction = 0.00;
+              else if (remainder <= 29) fraction = 0.15;
+              else if (remainder <= 44) fraction = 0.30;
+              else fraction = 0.45;
+              
+              roundedHrs = baseHours + fraction;
+          }
       }
+
+      absoluteTotalHours += roundedHrs;
+      totalHourly += Math.round(roundedHrs * 41.5 * 100) / 100;
     });
 
     return { records: empRecords, totalSalary: totalHourly.toFixed(2), absoluteTotalHours: absoluteTotalHours.toFixed(1) };
@@ -157,6 +175,7 @@ const AdminPanel = ({ user }) => {
          <button onClick={() => setActiveTab('dashboard')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'dashboard' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Dashboard</button>
          <button onClick={() => setActiveTab('attendance')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'attendance' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'attendance' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Attendance</button>
          <button onClick={() => setActiveTab('employees')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'employees' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'employees' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Employee Directory</button>
+         <button onClick={() => setActiveTab('reports')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'reports' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'reports' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Monthly Reports</button>
       </div>
 
       <div style={{ padding: '32px 20px', maxWidth: '1200px', margin: '0 auto', width: '100%', position: 'relative' }}>
@@ -187,10 +206,15 @@ const AdminPanel = ({ user }) => {
                 <p className="text-muted">Verify your presence for <strong>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
-                {!isCheckedIn && !isCheckedOut && (
+                {!isCheckedIn && !isCheckedOut && !isPastSix && (
                   <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', width: 'auto', padding: '16px 24px', fontSize: '1.1rem' }} onClick={() => handleAdminCheck('check-in')}>
                     <Clock size={20} style={{ marginRight: '8px' }}/> CHECK IN NOW
                   </button>
+                )}
+                {isAbsent && (
+                  <div style={{ color: 'var(--danger)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem' }}>
+                    Check-in closed. Marked Absent.
+                  </div>
                 )}
                 {isCheckedIn && (
                   <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', width: 'auto', padding: '16px 24px', fontSize: '1.1rem' }} onClick={() => handleAdminCheck('check-out')}>
@@ -219,25 +243,60 @@ const AdminPanel = ({ user }) => {
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Emp ID</th>
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Check In</th>
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Check Out</th>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Worked Hours Today</th>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Salary Today</th>
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Status</th>
                    </tr>
                  </thead>
                  <tbody>
-                   {filteredHistory.map(rec => (
+                   {filteredHistory.map(rec => {
+                     let roundedHrs = 0;
+                     let actualTimeStr = "0h 0m";
+                     
+                     if (rec.checkInTime && rec.checkOutTime) {
+                         const start = new Date(rec.checkInTime);
+                         let end = new Date(rec.checkOutTime);
+
+                         const sixPM = new Date(start);
+                         sixPM.setHours(18, 0, 0, 0);
+                         if (end > sixPM) end = sixPM;
+                         
+                         const diffMs = end - start;
+                         if (diffMs > 0) {
+                             const actualMinutes = Math.floor(diffMs / (1000 * 60));
+                             const baseHours = Math.floor(actualMinutes / 60);
+                             const remainder = actualMinutes % 60;
+                             actualTimeStr = `${baseHours}h ${remainder}m`;
+                             
+                             let fraction = 0.00;
+                             if (remainder <= 14) fraction = 0.00;
+                             else if (remainder <= 29) fraction = 0.15;
+                             else if (remainder <= 44) fraction = 0.30;
+                             else fraction = 0.45;
+                             
+                             roundedHrs = baseHours + fraction;
+                         }
+                     }
+
+                     let sal = Math.round(roundedHrs * 41.5 * 100) / 100;
+
+                     return (
                      <tr key={rec.id} style={{ borderBottom: '1px solid var(--border)' }}>
                        <td style={{ padding: '16px 20px', fontWeight: '500' }}>{new Date(rec.date).toLocaleDateString()}</td>
                        <td style={{ padding: '16px 20px', fontWeight: '700', color: 'var(--text-main)' }}>{getEmployeeName(rec.employeeId)}</td>
                        <td style={{ padding: '16px 20px', fontWeight: '700', color: 'var(--primary)' }}>{rec.employeeId}</td>
                        <td style={{ padding: '16px 20px', color: 'var(--success)' }}>{new Date(rec.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                        <td style={{ padding: '16px 20px', color: 'var(--secondary-dark)' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--'}</td>
+                       <td style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--success)' }}>Rs. {sal}</td>
                        <td style={{ padding: '16px 20px' }}>
                          <span style={{ background: '#ECFDF5', color: '#059669', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
                            {getStatusLabel(rec)}
                          </span>
                        </td>
                      </tr>
-                   ))}
-                   {filteredHistory.length === 0 && <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>No records logged for {formatMonth(selectedMonth)}.</td></tr>}
+                    );
+                   })}
+                   {filteredHistory.length === 0 && <tr><td colSpan="8" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>No records logged for {formatMonth(selectedMonth)}.</td></tr>}
                  </tbody>
                </table>
             </div>
@@ -372,6 +431,48 @@ const AdminPanel = ({ user }) => {
           </div>
         )}
 
+        {activeTab === 'reports' && (
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Monthly Salary Reports</h2>
+              <select className="card" style={{ margin: 0, padding: '10px 16px', fontWeight: 'bold', fontSize: '1rem', border: '2px solid var(--primary)', outline: 'none' }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
+                {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
+              </select>
+            </div>
+            
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+               <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                 <thead style={{ background: '#F8FAFC' }}>
+                   <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Staff Name</th>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Month</th>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Total Days Worked</th>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Total Monthly Hours</th>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Hourly Rate</th>
+                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Monthly Salary</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {employees.map(emp => {
+                     const salInfo = calculateSalary(emp, selectedMonth);
+                     if (salInfo.records.length === 0) return null;
+                     return (
+                       <tr key={emp.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                         <td style={{ padding: '16px 20px', fontWeight: '700', color: 'var(--text-main)' }}>{emp.name}</td>
+                         <td style={{ padding: '16px 20px', fontWeight: '500' }}>{formatMonth(selectedMonth)}</td>
+                         <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>{salInfo.records.length}</td>
+                         <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>{salInfo.absoluteTotalHours} Hours</td>
+                         <td style={{ padding: '16px 20px', color: 'var(--text-muted)' }}>Rs. 41.5</td>
+                         <td style={{ padding: '16px 20px', fontWeight: '900', color: 'var(--success)', fontSize: '1.1rem' }}>Rs. {salInfo.totalSalary}</td>
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
+            </div>
+          </div>
+        )}
+
         {/* Salary Calculation Modal */}
         {selectedEmp && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
@@ -394,20 +495,13 @@ const AdminPanel = ({ user }) => {
                     <div>
                       <h3 className="mb-4" style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid var(--border)', paddingBottom: '12px' }}><Calculator size={22} color="var(--primary)"/> Hours & Salary Breakdown</h3>
                       
-                      <div className="mb-6">
-                        <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
-                          <div style={{ fontSize: '1.2rem', color: 'var(--text-muted)', fontWeight: 'bold', marginBottom: '8px' }}>HOURLY RATE</div>
-                          <div style={{ fontSize: '3rem', fontWeight: '900', color: 'var(--primary)' }}>₹{selectedEmp.hourlyRate || 0}</div>
-                        </div>
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '20px', marginBottom: '32px' }}>
+                      <div className="mb-8" style={{ display: 'flex', gap: '20px' }}>
                         <div style={{ flex: 1, background: 'var(--primary)', color: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(248, 113, 113, 0.2)' }}>
-                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Total Hours Logged</div>
+                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Monthly Worked Hours</div>
                           <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>{sal.absoluteTotalHours} <span style={{ fontSize: '1.2rem' }}>hrs</span></div>
                         </div>
                         <div style={{ flex: 1, background: 'var(--success)', color: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}>
-                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Total Salary This Month</div>
+                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Monthly Salary Based on Hours</div>
                           <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>₹{sal.totalSalary}</div>
                         </div>
                       </div>
@@ -430,14 +524,33 @@ const AdminPanel = ({ user }) => {
                          {sal.records.map((rec, i) => {
                            let hrs = '--';
                            if (rec.checkInTime && rec.checkOutTime) {
-                             hrs = ((new Date(rec.checkOutTime) - new Date(rec.checkInTime)) / (1000 * 60 * 60)).toFixed(1) + 'h';
+                             const start = new Date(rec.checkInTime);
+                             let end = new Date(rec.checkOutTime);
+                             const sixPM = new Date(start);
+                             sixPM.setHours(18, 0, 0, 0);
+                             if (end > sixPM) end = sixPM;
+                             
+                             const diffMs = end - start;
+                             if (diffMs > 0) {
+                                 const actualMinutes = Math.floor(diffMs / (1000 * 60));
+                                 const baseHours = Math.floor(actualMinutes / 60);
+                                 const remainder = actualMinutes % 60;
+                                 
+                                 let fraction = 0.00;
+                                 if (remainder <= 14) fraction = 0.00;
+                                 else if (remainder <= 29) fraction = 0.15;
+                                 else if (remainder <= 44) fraction = 0.30;
+                                 else fraction = 0.45;
+                                 
+                                 hrs = `<div style="display: flex; flex-direction: column;"><span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 500">${baseHours}h ${remainder}m</span><span style="color: var(--primary); font-weight: 800">${(baseHours + fraction).toFixed(2)} Hrs</span></div>`;
+                             }
                            }
                            return (
                              <tr key={rec.id} style={{ borderBottom: i === sal.records.length - 1 ? 'none' : '1px solid var(--border)' }}>
                                <td style={{ padding: '16px' }}>{new Date(rec.date).toLocaleDateString()}</td>
                                <td style={{ padding: '16px', color: 'var(--success)', fontWeight:'500' }}>{new Date(rec.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                                <td style={{ padding: '16px', color: 'var(--secondary-dark)', fontWeight:'500' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Currently Active'}</td>
-                               <td style={{ padding: '16px', fontWeight: '800' }}>{hrs}</td>
+                               <td style={{ padding: '16px', fontWeight: '800' }} dangerouslySetInnerHTML={{ __html: hrs }}></td>
                              </tr>
                            )
                          })}

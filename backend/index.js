@@ -1,7 +1,7 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 
@@ -15,25 +15,9 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/finance-at
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-mongoose.connect(MONGO_URI)
-  .then(async () => {
-    console.log('Connected to MongoDB');
-    // Ensure default admin exists based on earlier data structure
-    const adminExists = await User.findOne({ email: 'harrishn052@gmail.com' });
-    if (!adminExists) {
-      await User.create({
-        role: 'admin',
-        name: 'Harrish',
-        email: 'harrishn052@gmail.com',
-        password: 'Harrish123',
-        employeeId: 'KCN_SLM'
-      });
-      console.log('Default admin created in DB');
-    }
-  })
-  .catch(err => console.error('MongoDB connection error:', err));
+// Connection moved to the bottom around app.listen 
 
-const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate) => {
+const calculateWorkedHoursAndSalary = (checkIn, checkOut) => {
   const start = new Date(checkIn);
   let end = new Date(checkOut);
   
@@ -43,11 +27,27 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate) => {
   if (end > sixPM) end = sixPM;
 
   const diffMs = end - start;
-  const hours = Math.max(0, diffMs / (1000 * 60 * 60)); // Handle cases where checkout < checkin (though shouldn't happen)
-  const roundedHours = Math.round(hours * 100) / 100; // 2 decimal places
-  const salary = Math.round(roundedHours * (hourlyRate || 0) * 100) / 100;
+  let totalMinutes = 0;
+  if (diffMs > 0) {
+     totalMinutes = Math.floor(diffMs / (1000 * 60));
+  }
   
-  return { hours: roundedHours, salary };
+  const baseHours = Math.floor(totalMinutes / 60);
+  const remainderMinutes = totalMinutes % 60;
+  
+  let fractionalHour = 0.00;
+  if (remainderMinutes >= 0 && remainderMinutes <= 14) fractionalHour = 0.00;
+  else if (remainderMinutes >= 15 && remainderMinutes <= 29) fractionalHour = 0.15;
+  else if (remainderMinutes >= 30 && remainderMinutes <= 44) fractionalHour = 0.30;
+  else if (remainderMinutes >= 45 && remainderMinutes <= 59) fractionalHour = 0.45;
+  
+  const roundedHours = baseHours + fractionalHour;
+  const salary = Math.round(roundedHours * 41.5 * 100) / 100;
+  
+  // Also provide exact formatted "xh ym" string to trace easily later
+  const actualTime = `${baseHours}h ${remainderMinutes}m`;
+  
+  return { hours: roundedHours, salary, actualTime, baseHours, remainderMinutes };
 };
 
 // Cron Job: Auto-checkout at 6:00 PM daily
@@ -67,8 +67,7 @@ cron.schedule('0 18 * * *', async () => {
     console.log(`[Cron] Running auto-checkout for ${activeRecords.length} employees at 6:00 PM`);
 
     for (const record of activeRecords) {
-      const user = await User.findOne({ employeeId: record.employeeId });
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.hourlyRate);
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
       
       record.checkOutTime = isoTimestamp;
       record.workedHours = hours;
@@ -189,6 +188,11 @@ app.post('/api/attendance', async (req, res) => {
     let record = await Attendance.findOne({ employeeId, date });
 
     if (type === 'check-in') {
+      const nowHours = new Date(timestamp).getHours();
+      if (nowHours >= 18) {
+        return res.status(400).json({ message: 'Check-in is closed after 6:00 PM. You are marked as absent.' });
+      }
+
       if (record) return res.status(400).json({ message: 'Already checked in today' });
       const newRecord = await Attendance.create({
         employeeId,
@@ -201,8 +205,7 @@ app.post('/api/attendance', async (req, res) => {
       if (!record) return res.status(400).json({ message: 'Must check in first' });
       if (record.checkOutTime) return res.status(400).json({ message: 'Already checked out today' });
       
-      const user = await User.findOne({ employeeId });
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, timestamp, user?.hourlyRate);
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, timestamp);
 
       record.checkOutTime = timestamp;
       record.workedHours = hours;
@@ -210,6 +213,29 @@ app.post('/api/attendance', async (req, res) => {
       await record.save();
       return res.json(record);
     }
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.post('/api/attendance/auto-checkout', async (req, res) => {
+  try {
+    const { employeeId } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+    const timestamp = new Date();
+    timestamp.setHours(18, 0, 0, 0); // Exactly 6 PM
+    const isoTimestamp = timestamp.toISOString();
+
+    let record = await Attendance.findOne({ employeeId, date: today });
+    if (record && !record.checkOutTime && record.status === 'Present') {
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
+      
+      record.checkOutTime = isoTimestamp;
+      record.workedHours = hours;
+      record.dailySalary = salary;
+      await record.save();
+    }
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -223,4 +249,22 @@ app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+mongoose.connect(MONGO_URI)
+  .then(async () => {
+    console.log('Connected to MongoDB');
+    // Ensure default admin exists based on earlier data structure
+    const adminExists = await User.findOne({ email: 'harrishn052@gmail.com' });
+    if (!adminExists) {
+      await User.create({
+        role: 'admin',
+        name: 'Harrish',
+        email: 'harrishn052@gmail.com',
+        password: 'Harrish123',
+        employeeId: 'KCN_SLM'
+      });
+      console.log('Default admin created in DB');
+    }
+    
+    app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+  })
+  .catch(err => console.error('MongoDB connection error:', err));
