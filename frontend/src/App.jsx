@@ -47,20 +47,30 @@ function App() {
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)' }}>
-      <nav style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', borderBottom: 'none', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <img src="/logo.png" alt="KCN" style={{ height: '54px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-          <h1 style={{ margin: 0, fontSize: '1.5rem', color: 'white', letterSpacing: '-0.5px' }}>KCN Insurance</h1>
+      <nav style={{ 
+        background: 'linear-gradient(135deg, var(--primary), var(--secondary))', 
+        borderBottom: 'none', 
+        padding: '12px var(--mobile-padding)', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        boxShadow: 'none',
+        flexWrap: 'wrap',
+        gap: '8px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src="/logo.png" alt="KCN" style={{ height: '40px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
+          <h1 style={{ margin: 0, fontSize: '1.25rem', color: 'white', letterSpacing: '-0.5px' }}>KCN Attendance</h1>
         </div>
         {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div style={{ fontWeight: '700', fontSize: '1.1rem', color: 'white' }}>Welcome, {user.name}!</div>
-            <button onClick={handleLogout} className="btn" style={{ width: 'auto', padding: '8px 16px', borderRadius: '8px', fontSize: '0.9rem', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)' }}>Log Out</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="hidden-mobile" style={{ fontWeight: '700', fontSize: '1rem', color: 'white' }}>Welcome, {user.name}!</div>
+            <button onClick={handleLogout} className="btn" style={{ width: 'auto', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)' }}>Log Out</button>
           </div>
         )}
       </nav>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ minHeight: '100%' }}>
         {!user ? (
           <Login onLogin={handleLogin} />
         ) : user.role === 'admin' ? (

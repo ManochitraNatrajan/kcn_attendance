@@ -172,15 +172,15 @@ const AdminPanel = ({ user }) => {
   const filteredHistory = history.filter(r => r.date.startsWith(selectedMonth));
 
   return (
-    <div style={{ flex: 1, backgroundColor: 'var(--bg-color)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: 'white', padding: '0 32px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-         <button onClick={() => setActiveTab('dashboard')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'dashboard' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Dashboard</button>
-         <button onClick={() => setActiveTab('attendance')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'attendance' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'attendance' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Attendance</button>
-         <button onClick={() => setActiveTab('employees')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'employees' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'employees' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Employee Directory</button>
-         <button onClick={() => setActiveTab('reports')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'reports' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'reports' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Monthly Reports</button>
+    <div style={{ backgroundColor: 'var(--bg-color)', display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
+      <div className="mobile-tabs">
+         <button onClick={() => setActiveTab('dashboard')} style={{ background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', color: activeTab === 'dashboard' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Dashboard</button>
+         <button onClick={() => setActiveTab('attendance')} style={{ background: 'none', border: 'none', borderBottom: activeTab === 'attendance' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', color: activeTab === 'attendance' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Attendance</button>
+         <button onClick={() => setActiveTab('employees')} style={{ background: 'none', border: 'none', borderBottom: activeTab === 'employees' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', color: activeTab === 'employees' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Employees</button>
+         <button onClick={() => setActiveTab('reports')} style={{ background: 'none', border: 'none', borderBottom: activeTab === 'reports' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', color: activeTab === 'reports' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Reports</button>
       </div>
 
-      <div style={{ padding: '32px 20px', maxWidth: '1200px', margin: '0 auto', width: '100%', position: 'relative' }}>
+      <div style={{ padding: '24px var(--mobile-padding)', maxWidth: '1200px', margin: '0 auto', width: '100%', position: 'relative', boxSizing: 'border-box' }}>
         {activeTab === 'dashboard' && (
           <div>
             <div className="grid-cols-3 mb-6">
@@ -189,10 +189,10 @@ const AdminPanel = ({ user }) => {
               <div className="stat-box" style={{ borderTopColor: 'var(--danger)' }}><div className="stat-value" style={{ color: 'var(--danger)' }}>{stats.absent}</div><div className="stat-label">Absent Today</div></div>
             </div>
 
-            <div style={{ marginTop: '96px', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'center' }}>
               <button 
                 className="btn btn-primary" 
-                style={{ width: 'auto', padding: '24px 64px', fontSize: '1.5rem', borderRadius: '50px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} 
+                style={{ width: '100%', maxWidth: '300px', padding: '18px 24px', fontSize: '1.25rem', borderRadius: '50px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} 
                 onClick={() => setActiveTab('attendance')}>
                 MARK ATTENDANCE
               </button>
@@ -202,12 +202,12 @@ const AdminPanel = ({ user }) => {
 
         {activeTab === 'attendance' && (
           <div>
-            <div className="card mb-8 flex justify-between items-center" style={{ padding: '32px 40px', borderLeft: '6px solid var(--primary)' }}>
+            <div className="card mb-8 mobile-stack" style={{ padding: '24px', borderLeft: '6px solid var(--primary)', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>My Attendance</h3>
-                <p className="text-muted">Verify your presence for <strong>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>My Attendance</h3>
+                <p className="text-muted" style={{ fontSize: '0.9rem' }}>Verify your presence for <strong>{new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</strong></p>
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-start' }}>
                 {!isCheckedIn && !isCheckedOut && !isPastSix && (
                   <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', width: 'auto', padding: '16px 24px', fontSize: '1.1rem' }} onClick={() => handleAdminCheck('check-in')}>
                     <Clock size={20} style={{ marginRight: '8px' }}/> CHECK IN NOW
@@ -230,13 +230,13 @@ const AdminPanel = ({ user }) => {
                 )}
               </div>
             </div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Global Attendance History</h2>
-              <select className="card" style={{ margin: 0, padding: '10px 16px', fontWeight: 'bold', fontSize: '1rem', border: '2px solid var(--primary)', outline: 'none' }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
+            <div className="mobile-stack mb-4" style={{ justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Attendance History</h2>
+              <select className="card" style={{ margin: 0, padding: '10px 16px', fontWeight: 'bold', fontSize: '0.9rem', border: '2px solid var(--primary)', outline: 'none', width: '100%', maxWidth: '240px' }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
                 {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
               </select>
             </div>
-            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="table-container">
                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                  <thead style={{ background: '#F8FAFC' }}>
                    <tr style={{ borderBottom: '2px solid var(--border)' }}>
@@ -319,8 +319,8 @@ const AdminPanel = ({ user }) => {
             
             {showAdd && (
               <form className="card" onSubmit={handleAddEmployee} style={{ borderTop: '4px solid var(--secondary)', background: '#F8FAFC' }}>
-                <h3 className="mb-4">Create Employee Profile</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Create Employee Profile</h3>
+                <div className="mobile-stack">
                   <div className="input-group">
                     <label>Full Name</label>
                     <input required value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} placeholder="John Doe" />
@@ -356,7 +356,8 @@ const AdminPanel = ({ user }) => {
               </form>
             )}
                
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+            <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '12px', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', minWidth: 'min-content' }}>
               {employees.map(emp => {
                  if (editingEmp === emp.id) {
                    return (
@@ -399,53 +400,49 @@ const AdminPanel = ({ user }) => {
                    );
                  }
                  return (
-                 <div className="card flex items-center justify-between" key={emp.id} style={{ padding: '24px 32px', cursor: 'pointer', transition: 'all 0.2s', margin: 0, borderLeft: '4px solid transparent' }} 
-                      onClick={() => { setSelectedEmp(emp); setModalMonth(selectedMonth); }}
-                      onMouseEnter={(e) => e.currentTarget.style.borderLeftColor = 'var(--primary)'}
-                      onMouseLeave={(e) => e.currentTarget.style.borderLeftColor = 'transparent'}>
-                   <div className="flex items-center">
-                     <div>
-                       <div style={{ fontWeight: 'bold', fontSize: '1.25rem', color: 'var(--text-main)' }}>
-                         {emp.name} 
-                         <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: '500', marginLeft: '8px' }}>({emp.employeeId})</span>
-                         {emp.role === 'admin' && <span style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', padding: '4px 8px', borderRadius: '12px', marginLeft: '12px', verticalAlign: 'middle', textTransform: 'uppercase', fontWeight: 'bold' }}>Admin</span>}
-                       </div>
-                       <div style={{ fontSize: '0.95rem', color: 'var(--secondary-dark)', fontWeight: '600', marginTop: '4px' }}>{emp.email} <span style={{ color: 'var(--text-muted)', paddingLeft: '8px' }}>— Click to view Salary & Hours Breakdown</span></div>
-                     </div>
-                   </div>
-                   <div style={{ display: 'flex', gap: '8px' }}>
-                     <button style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', transition: 'background 0.2s' }} 
-                             onClick={(e) => handleEditClick(emp, e)}
-                             onMouseEnter={e => e.currentTarget.style.background = '#EFF6FF'}
-                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                             title="Edit Employee">
-                        <Edit size={24} />
-                     </button>
-                     <button style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', transition: 'background 0.2s' }} 
-                             onClick={(e) => handleDelete(emp.id, e)}
-                             onMouseEnter={e => e.currentTarget.style.background = '#FEE2E2'}
-                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                             title="Delete Employee">
-                        <Trash2 size={24} />
-                     </button>
-                   </div>
-                 </div>
+                  <div className="card card-mobile-compact" key={emp.id} style={{ cursor: 'pointer', transition: 'all 0.2s', margin: 0, borderLeft: '4px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }} 
+                       onClick={() => { setSelectedEmp(emp); setModalMonth(selectedMonth); }}>
+                    <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{emp.name}</div>
+                        {emp.role === 'admin' && <span style={{ background: 'var(--primary)', color: 'white', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', textTransform: 'uppercase', fontWeight: 'bold', flexShrink: 0 }}>Admin</span>}
+                      </div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--secondary-dark)', fontWeight: '600', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.email} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({emp.employeeId})</span></div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                      <button style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', transition: 'background 0.2s' }} 
+                              onClick={(e) => handleEditClick(emp, e)}
+                              onMouseEnter={e => e.currentTarget.style.background = '#EFF6FF'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                              title="Edit Employee">
+                         <Edit size={20} />
+                      </button>
+                      <button style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', transition: 'background 0.2s' }} 
+                              onClick={(e) => handleDelete(emp.id, e)}
+                              onMouseEnter={e => e.currentTarget.style.background = '#FEE2E2'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                              title="Delete Employee">
+                         <Trash2 size={20} />
+                      </button>
+                    </div>
+                  </div>
               );})}
               {employees.length === 0 && <p className="text-muted text-center card" style={{ padding: '48px 0' }}>No employees added yet.</p>}
-            </div>
-          </div>
+             </div>
+           </div>
+         </div>
         )}
 
         {activeTab === 'reports' && (
           <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Monthly Salary Reports</h2>
-              <select className="card" style={{ margin: 0, padding: '10px 16px', fontWeight: 'bold', fontSize: '1rem', border: '2px solid var(--primary)', outline: 'none' }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
+            <div className="mobile-stack mb-4" style={{ justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Salary Reports</h2>
+              <select className="card" style={{ margin: 0, padding: '10px 16px', fontWeight: 'bold', fontSize: '0.9rem', border: '2px solid var(--primary)', outline: 'none', width: '100%', maxWidth: '240px' }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
                 {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
               </select>
             </div>
             
-            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="table-container">
                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                  <thead style={{ background: '#F8FAFC' }}>
                    <tr style={{ borderBottom: '2px solid var(--border)' }}>
@@ -480,91 +477,93 @@ const AdminPanel = ({ user }) => {
 
         {/* Salary Calculation Modal */}
         {selectedEmp && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
-            <div className="card" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', background: 'white', padding: '40px', position: 'relative' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '2px solid var(--border)', paddingBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--primary)' }}>Salary & Hours Report for {selectedEmp.name}</h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <select className="card" style={{ margin: 0, padding: '8px 16px', fontWeight: 'bold' }} value={modalMonth} onChange={e => setModalMonth(e.target.value)}>
-                    {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
-                  </select>
-                  <button style={{ background: '#F1F5F9', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex' }} onClick={() => setSelectedEmp(null)}>
-                    <X size={24} color="var(--text-muted)" />
-                  </button>
-                </div>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '10px' }}>
+            <div className="card" style={{ width: '100%', maxWidth: '800px', maxHeight: '95vh', overflowY: 'auto', background: 'white', padding: '24px var(--mobile-padding)', position: 'relative', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '2px solid var(--border)', paddingBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--primary)', paddingRight: '40px' }}>Report: {selectedEmp.name}</h3>
+                <button style={{ background: '#F1F5F9', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', position: 'absolute', right: '16px', top: '16px' }} onClick={() => setSelectedEmp(null)}>
+                  <X size={20} color="var(--text-muted)" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Select Month:</label>
+                <select className="card" style={{ margin: 0, padding: '8px 12px', fontWeight: 'bold', width: '100%' }} value={modalMonth} onChange={e => setModalMonth(e.target.value)}>
+                  {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
+                </select>
               </div>
 
                {(() => {
                   const sal = calculateSalary(selectedEmp, modalMonth);
                   return (
                     <div>
-                      <h3 className="mb-4" style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid var(--border)', paddingBottom: '12px' }}><Calculator size={22} color="var(--primary)"/> Hours & Salary Breakdown</h3>
-                      
-                      <div className="mb-8" style={{ display: 'flex', gap: '20px' }}>
-                        <div style={{ flex: 1, background: 'var(--primary)', color: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(248, 113, 113, 0.2)' }}>
-                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Monthly Worked Hours</div>
-                          <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>{sal.absoluteTotalHours} <span style={{ fontSize: '1.2rem' }}>hrs</span></div>
+                      <div className="mobile-stack mb-6">
+                        <div style={{ flex: 1, background: 'var(--primary)', color: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Hours</div>
+                          <div style={{ fontSize: '1.75rem', fontWeight: '900' }}>{sal.absoluteTotalHours}</div>
                         </div>
-                        <div style={{ flex: 1, background: 'var(--success)', color: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}>
-                          <div style={{ fontSize: '1rem', opacity: 0.9 }}>Monthly Salary Based on Hours</div>
-                          <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>₹{sal.totalSalary}</div>
+                        <div style={{ flex: 1, background: 'var(--success)', color: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Salary (₹)</div>
+                          <div style={{ fontSize: '1.75rem', fontWeight: '900' }}>{sal.totalSalary}</div>
                         </div>
                       </div>
 
-                      <div style={{ background: '#EFF6FF', padding: '20px', borderRadius: '12px', color: '#1E40AF', fontWeight: '500', fontSize: '1rem', borderLeft: '4px solid #3B82F6', marginBottom: '32px' }}>
-                        <strong>Salary Policy:</strong> Salary is calculated based on exact worked hours multiplied by the employee's hourly rate. Calculations are capped at 6:00 PM daily.
+                      <div style={{ background: '#EFF6FF', padding: '16px', borderRadius: '12px', color: '#1E40AF', fontSize: '0.85rem', borderLeft: '4px solid #3B82F6', marginBottom: '24px' }}>
+                        <strong>Policy:</strong> Calculated based on worked hours x hourly rate, capped at 6 PM.
                       </div>
 
-                     <h3 className="mb-4">Individual Attendance Logs</h3>
-                     <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-                       <thead>
-                         <tr style={{ background: '#F8FAFC', borderBottom: '2px solid var(--border)' }}>
-                           <th style={{ padding: '12px 16px' }}>Date</th>
-                           <th style={{ padding: '12px 16px' }}>Check In</th>
-                           <th style={{ padding: '12px 16px' }}>Check Out</th>
-                           <th style={{ padding: '12px 16px', color: 'var(--primary)' }}>Total Logged</th>
-                         </tr>
-                       </thead>
-                       <tbody>
-                         {sal.records.map((rec, i) => {
-                           let hrs = '--';
-                           if (rec.checkInTime && rec.checkOutTime) {
-                             const start = new Date(rec.checkInTime);
-                             let end = new Date(rec.checkOutTime);
-                             const sixPM = new Date(start);
-                             sixPM.setHours(18, 0, 0, 0);
-                             if (end > sixPM) end = sixPM;
-                             
-                             const diffMs = end - start;
-                             if (diffMs > 0) {
-                                 const actualMinutes = Math.floor(diffMs / (1000 * 60));
-                                 const baseHours = Math.floor(actualMinutes / 60);
-                                 const remainder = actualMinutes % 60;
-                                 
-                                 let fraction = 0.00;
-                                 if (remainder <= 14) fraction = 0.00;
-                                 else if (remainder <= 29) fraction = 0.15;
-                                 else if (remainder <= 44) fraction = 0.30;
-                                 else fraction = 0.45;
-                                 
-                                 hrs = `<div style="display: flex; flex-direction: column;"><span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 500">${baseHours}h ${remainder}m</span><span style="color: var(--primary); font-weight: 800">${(baseHours + fraction).toFixed(2)} Hrs</span></div>`;
+                     <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>Attendance Logs</h3>
+                     <div className="table-container">
+                       <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', background: 'white' }}>
+                         <thead>
+                           <tr style={{ background: '#F8FAFC', borderBottom: '2px solid var(--border)' }}>
+                             <th style={{ padding: '12px' }}>Date</th>
+                             <th style={{ padding: '12px' }}>In</th>
+                             <th style={{ padding: '12px' }}>Out</th>
+                             <th style={{ padding: '12px', color: 'var(--primary)' }}>Hrs</th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           {sal.records.map((rec, i) => {
+                             let hrs = '--';
+                             if (rec.checkInTime && rec.checkOutTime) {
+                               const start = new Date(rec.checkInTime);
+                               let end = new Date(rec.checkOutTime);
+                               const sixPM = new Date(start);
+                               sixPM.setHours(18, 0, 0, 0);
+                               if (end > sixPM) end = sixPM;
+                               
+                               const diffMs = end - start;
+                               if (diffMs > 0) {
+                                   const actualMinutes = Math.floor(diffMs / (1000 * 60));
+                                   const baseHours = Math.floor(actualMinutes / 60);
+                                   const remainder = actualMinutes % 60;
+                                   
+                                   let fraction = 0.00;
+                                   if (remainder <= 14) fraction = 0.00;
+                                   else if (remainder <= 29) fraction = 0.15;
+                                   else if (remainder <= 44) fraction = 0.30;
+                                   else fraction = 0.45;
+                                   
+                                   hrs = `${(baseHours + fraction).toFixed(2)}`;
+                               }
                              }
-                           }
-                           return (
-                             <tr key={rec.id} style={{ borderBottom: i === sal.records.length - 1 ? 'none' : '1px solid var(--border)' }}>
-                               <td style={{ padding: '16px' }}>{new Date(rec.date).toLocaleDateString()}</td>
-                               <td style={{ padding: '16px', color: 'var(--success)', fontWeight:'500' }}>{new Date(rec.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                               <td style={{ padding: '16px', color: 'var(--secondary-dark)', fontWeight:'500' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Currently Active'}</td>
-                               <td style={{ padding: '16px', fontWeight: '800' }} dangerouslySetInnerHTML={{ __html: hrs }}></td>
-                             </tr>
-                           )
-                         })}
-                         {sal.records.length === 0 && <tr><td colSpan="4" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No logs recorded.</td></tr>}
-                       </tbody>
-                     </table>
-                   </div>
-                 );
-              })()}
+                             return (
+                               <tr key={rec.id} style={{ borderBottom: i === sal.records.length - 1 ? 'none' : '1px solid var(--border)' }}>
+                                 <td style={{ padding: '12px', fontSize: '0.85rem' }}>{new Date(rec.date).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</td>
+                                 <td style={{ padding: '12px', color: 'var(--success)', fontSize: '0.85rem' }}>{new Date(rec.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                                 <td style={{ padding: '12px', color: 'var(--secondary-dark)', fontSize: '0.85rem' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Active'}</td>
+                                 <td style={{ padding: '12px', fontWeight: '800', fontSize: '0.85rem' }}>{hrs}</td>
+                               </tr>
+                             )
+                           })}
+                           {sal.records.length === 0 && <tr><td colSpan="4" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No logs recorded.</td></tr>}
+                         </tbody>
+                       </table>
+                     </div>
+                    </div>
+                  );
+               })()}
 
             </div>
           </div>

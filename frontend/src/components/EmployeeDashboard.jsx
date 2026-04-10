@@ -53,13 +53,13 @@ const EmployeeDashboard = ({ user }) => {
   if (loading) return <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)' }}>Loading Dashboard...</div>;
 
   return (
-    <div style={{ flex: 1, backgroundColor: 'var(--bg-color)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: 'white', padding: '0 32px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-         <button onClick={() => setActiveTab('dashboard')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'dashboard' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Dashboard</button>
-         <button onClick={() => setActiveTab('attendance')} style={{ padding: '20px 0', background: 'none', border: 'none', borderBottom: activeTab === 'attendance' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: activeTab === 'attendance' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Attendance</button>
+    <div style={{ backgroundColor: 'var(--bg-color)', display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
+      <div className="mobile-tabs">
+         <button onClick={() => setActiveTab('dashboard')} style={{ background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', color: activeTab === 'dashboard' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Dashboard</button>
+         <button onClick={() => setActiveTab('attendance')} style={{ background: 'none', border: 'none', borderBottom: activeTab === 'attendance' ? '4px solid var(--primary)' : '4px solid transparent', fontWeight: 'bold', color: activeTab === 'attendance' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>Attendance</button>
       </div>
 
-      <div style={{ padding: '0 24px', maxWidth: '1000px', margin: '32px auto', width: '100%' }}>
+      <div style={{ padding: '0 var(--mobile-padding)', maxWidth: '1000px', margin: '24px auto', width: '100%', boxSizing: 'border-box' }}>
         {activeTab === 'dashboard' && (
           <div>
             <h2 className="mb-4" style={{ fontSize: '1.5rem' }}>Today's Statistics</h2>
@@ -78,10 +78,10 @@ const EmployeeDashboard = ({ user }) => {
               </div>
             </div>
 
-            <div style={{ marginTop: '96px', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'center' }}>
               <button 
                 className="btn btn-primary" 
-                style={{ width: 'auto', padding: '24px 64px', fontSize: '1.5rem', borderRadius: '50px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} 
+                style={{ width: '100%', maxWidth: '300px', padding: '18px 24px', fontSize: '1.25rem', borderRadius: '50px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} 
                 onClick={() => setActiveTab('attendance')}>
                 MARK ATTENDANCE
               </button>
