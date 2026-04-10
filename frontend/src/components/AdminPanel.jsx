@@ -103,14 +103,10 @@ const AdminPanel = ({ user }) => {
   // Salary Calculator Logic (Updated to Hourly Rule)
   const calculateSalary = (emp, targetMonth) => {
     const empRecords = history.filter(h => h.employeeId === emp.employeeId && h.date.startsWith(targetMonth));
-    let totalHourly = 0;
-    let absoluteTotalHours = 0;
+    let totalMinutes = 0;
+    const rate = emp.hourlyRate || 41.5;
     
     empRecords.forEach(r => {
-      let roundedHrs = 0;
-      let actualMinutes = 0;
-      let actualTimeStr = "0h 0m";
-
       if (r.checkInTime && r.checkOutTime) {
           const start = new Date(r.checkInTime);
           let end = new Date(r.checkOutTime);
@@ -121,26 +117,32 @@ const AdminPanel = ({ user }) => {
           
           const diffMs = end - start;
           if (diffMs > 0) {
-              actualMinutes = Math.floor(diffMs / (1000 * 60));
+              const actualMinutes = Math.floor(diffMs / (1000 * 60));
               const baseHours = Math.floor(actualMinutes / 60);
               const remainder = actualMinutes % 60;
-              actualTimeStr = `${baseHours}h ${remainder}m`;
               
-              let fraction = 0.00;
-              if (remainder <= 14) fraction = 0.00;
-              else if (remainder <= 29) fraction = 0.15;
-              else if (remainder <= 44) fraction = 0.30;
-              else fraction = 0.45;
+              let roundedRemainder = 0;
+              if (remainder <= 14) roundedRemainder = 0;
+              else if (remainder <= 29) roundedRemainder = 15;
+              else if (remainder <= 44) roundedRemainder = 30;
+              else roundedRemainder = 45;
               
-              roundedHrs = baseHours + fraction;
+              totalMinutes += (baseHours * 60) + roundedRemainder;
           }
       }
-
-      absoluteTotalHours += roundedHrs;
-      totalHourly += Math.round(roundedHrs * 41.5 * 100) / 100;
     });
 
-    return { records: empRecords, totalSalary: totalHourly.toFixed(2), absoluteTotalHours: absoluteTotalHours.toFixed(1) };
+    const finalBaseHours = Math.floor(totalMinutes / 60);
+    const finalRemainder = totalMinutes % 60;
+    const normalizedTotalHours = finalBaseHours + (finalRemainder / 100);
+
+    const totalSalary = Math.round(normalizedTotalHours * rate * 100) / 100;
+
+    return { 
+      records: empRecords, 
+      totalSalary: totalSalary.toFixed(2), 
+      absoluteTotalHours: normalizedTotalHours.toFixed(2) 
+    };
   };
 
   const getStatusLabel = (rec) => {
@@ -278,7 +280,9 @@ const AdminPanel = ({ user }) => {
                          }
                      }
 
-                     let sal = Math.round(roundedHrs * 41.5 * 100) / 100;
+                      const emp = employees.find(e => e.employeeId === rec.employeeId);
+                      const rate = emp ? (emp.hourlyRate || 41.5) : 41.5;
+                      let sal = Math.round(roundedHrs * rate * 100) / 100;
 
                      return (
                      <tr key={rec.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -287,6 +291,7 @@ const AdminPanel = ({ user }) => {
                        <td style={{ padding: '16px 20px', fontWeight: '700', color: 'var(--primary)' }}>{rec.employeeId}</td>
                        <td style={{ padding: '16px 20px', color: 'var(--success)' }}>{new Date(rec.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                        <td style={{ padding: '16px 20px', color: 'var(--secondary-dark)' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--'}</td>
+                       <td style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--success)' }}>{roundedHrs} hrs</td>
                        <td style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--success)' }}>Rs. {sal}</td>
                        <td style={{ padding: '16px 20px' }}>
                          <span style={{ background: '#ECFDF5', color: '#059669', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
@@ -462,7 +467,7 @@ const AdminPanel = ({ user }) => {
                          <td style={{ padding: '16px 20px', fontWeight: '500' }}>{formatMonth(selectedMonth)}</td>
                          <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>{salInfo.records.length}</td>
                          <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>{salInfo.absoluteTotalHours} Hours</td>
-                         <td style={{ padding: '16px 20px', color: 'var(--text-muted)' }}>Rs. 41.5</td>
+                         <td style={{ padding: '16px 20px', color: 'var(--text-muted)' }}>Rs. {emp.hourlyRate || 41.5}</td>
                          <td style={{ padding: '16px 20px', fontWeight: '900', color: 'var(--success)', fontSize: '1.1rem' }}>Rs. {salInfo.totalSalary}</td>
                        </tr>
                      );

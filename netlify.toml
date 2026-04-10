@@ -6,7 +6,7 @@
 # This automatically handles the proxy and routing from the root
 [[redirects]]
   from = "/api/*"
-  to = "https://kcn-attendance-api.onrender.com/api/:splat"
+  to = "https://kcn-attendance-2.onrender.com/api/:splat"
   status = 200
 
 [[redirects]]

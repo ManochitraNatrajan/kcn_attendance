@@ -17,12 +17,12 @@ app.use(express.json({ limit: '5mb' }));
 
 // Connection moved to the bottom around app.listen 
 
-const calculateWorkedHoursAndSalary = (checkIn, checkOut) => {
+const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 41.5) => {
   const start = new Date(checkIn);
   let end = new Date(checkOut);
   
   // Cap at 6:00 PM (18:00) for salary calculation
-  const sixPM = new Date(end);
+  const sixPM = new Date(start);
   sixPM.setHours(18, 0, 0, 0);
   if (end > sixPM) end = sixPM;
 
@@ -42,7 +42,7 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut) => {
   else if (remainderMinutes >= 45 && remainderMinutes <= 59) fractionalHour = 0.45;
   
   const roundedHours = baseHours + fractionalHour;
-  const salary = Math.round(roundedHours * 41.5 * 100) / 100;
+  const salary = Math.round(roundedHours * hourlyRate * 100) / 100;
   
   // Also provide exact formatted "xh ym" string to trace easily later
   const actualTime = `${baseHours}h ${remainderMinutes}m`;
@@ -67,7 +67,9 @@ cron.schedule('0 18 * * *', async () => {
     console.log(`[Cron] Running auto-checkout for ${activeRecords.length} employees at 6:00 PM`);
 
     for (const record of activeRecords) {
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
+      const user = await User.findOne({ employeeId: record.employeeId });
+      const rate = user ? (user.hourlyRate || 41.5) : 41.5;
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, rate);
       
       record.checkOutTime = isoTimestamp;
       record.workedHours = hours;
@@ -205,7 +207,9 @@ app.post('/api/attendance', async (req, res) => {
       if (!record) return res.status(400).json({ message: 'Must check in first' });
       if (record.checkOutTime) return res.status(400).json({ message: 'Already checked out today' });
       
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, timestamp);
+      const user = await User.findOne({ employeeId: record.employeeId });
+      const rate = user ? (user.hourlyRate || 41.5) : 41.5;
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, timestamp, rate);
 
       record.checkOutTime = timestamp;
       record.workedHours = hours;
@@ -228,7 +232,9 @@ app.post('/api/attendance/auto-checkout', async (req, res) => {
 
     let record = await Attendance.findOne({ employeeId, date: today });
     if (record && !record.checkOutTime && record.status === 'Present') {
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
+      const user = await User.findOne({ employeeId: record.employeeId });
+      const rate = user ? (user.hourlyRate || 41.5) : 41.5;
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, rate);
       
       record.checkOutTime = isoTimestamp;
       record.workedHours = hours;
