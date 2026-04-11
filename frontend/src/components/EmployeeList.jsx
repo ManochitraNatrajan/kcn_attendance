@@ -10,7 +10,7 @@ const EmployeeList = ({ employees, onRefresh }) => {
 
   useEffect(() => {
     onRefresh();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     api.get(`/attendance?date=${today}`).then(setAttendance).catch(() => {});
   }, []);
 
@@ -29,7 +29,7 @@ const EmployeeList = ({ employees, onRefresh }) => {
     <div className="container" style={{ padding: 0 }}>
       <div className="header">
         <h1>KCN Insurance</h1>
-        <p>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+        <p>{new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'long', month: 'short', day: 'numeric' })}</p>
         
         <div className="flex gap-4 w-full mt-4" style={{ background: 'rgba(255,255,255,0.1)', padding: '16px', borderRadius: '16px' }}>
           <div className="text-center" style={{ flex: 1 }}>

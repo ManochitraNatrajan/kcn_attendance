@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Plus, Trash2, Clock, CheckCircle, Calculator, X, Edit } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle, Calculator, X, Edit, ArrowLeft } from 'lucide-react';
 import { api } from '../utils/api';
 
 const AdminPanel = ({ user }) => {
@@ -35,7 +35,7 @@ const AdminPanel = ({ user }) => {
       const att = await api.get('/attendance');
       setHistory(att.sort((a,b) => new Date(b.checkInTime) - new Date(a.checkInTime)));
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
       const meToday = att.find(a => a.employeeId.toUpperCase() === user.employeeId.toUpperCase() && a.date === today);
       setTodayRecord(meToday || null);
     } catch(err) {
@@ -100,7 +100,6 @@ const AdminPanel = ({ user }) => {
   const isCheckedOut = todayRecord && todayRecord.checkOutTime;
   const isAbsent = !todayRecord && isPastSix;
 
-  // Salary Calculator Logic (Updated to Hourly Rule)
   const calculateSalary = (emp, targetMonth) => {
     const empRecords = history.filter(h => h.employeeId === emp.employeeId && h.date.startsWith(targetMonth));
     let totalMinutes = 0;
@@ -111,37 +110,32 @@ const AdminPanel = ({ user }) => {
           const start = new Date(r.checkInTime);
           let end = new Date(r.checkOutTime);
 
-          const sixPM = new Date(start);
-          sixPM.setHours(18, 0, 0, 0);
+          if (end < start) end = start;
+
+          const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+          const ymd = formatter.format(start);
+          const sixPM = new Date(`${ymd}T18:00:00+05:30`);
           if (end > sixPM) end = sixPM;
           
           const diffMs = end - start;
           if (diffMs > 0) {
               const actualMinutes = Math.floor(diffMs / (1000 * 60));
-              const baseHours = Math.floor(actualMinutes / 60);
-              const remainder = actualMinutes % 60;
-              
-              let roundedRemainder = 0;
-              if (remainder <= 14) roundedRemainder = 0;
-              else if (remainder <= 29) roundedRemainder = 15;
-              else if (remainder <= 44) roundedRemainder = 30;
-              else roundedRemainder = 45;
-              
-              totalMinutes += (baseHours * 60) + roundedRemainder;
+              totalMinutes += actualMinutes;
           }
       }
     });
 
     const finalBaseHours = Math.floor(totalMinutes / 60);
     const finalRemainder = totalMinutes % 60;
-    const normalizedTotalHours = finalBaseHours + (finalRemainder / 100);
+    const exactTotalHours = totalMinutes / 60;
 
-    const totalSalary = Math.round(normalizedTotalHours * rate * 100) / 100;
+    const totalSalary = Math.round(exactTotalHours * rate * 100) / 100;
 
     return { 
       records: empRecords, 
       totalSalary: totalSalary.toFixed(2), 
-      absoluteTotalHours: normalizedTotalHours.toFixed(2) 
+      formattedTotalTime: `${finalBaseHours} hours ${finalRemainder} minutes`,
+      absoluteTotalHours: (Math.round(exactTotalHours * 100) / 100).toFixed(2) 
     };
   };
 
@@ -202,10 +196,16 @@ const AdminPanel = ({ user }) => {
 
         {activeTab === 'attendance' && (
           <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+               <button className="btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'white', border: '1px solid var(--border)' }} onClick={() => setActiveTab('dashboard')}>
+                  <ArrowLeft size={20} color="var(--text-main)" />
+               </button>
+               <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Attendance Management</h2>
+            </div>
             <div className="card mb-8 mobile-stack" style={{ padding: '24px', borderLeft: '6px solid var(--primary)', justifyContent: 'space-between' }}>
               <div>
                 <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>My Attendance</h3>
-                <p className="text-muted" style={{ fontSize: '0.9rem' }}>Verify your presence for <strong>{new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</strong></p>
+                <p className="text-muted" style={{ fontSize: '0.9rem' }}>Verify your presence for <strong>{new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</strong></p>
               </div>
               <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-start' }}>
                 {!isCheckedIn && !isCheckedOut && !isPastSix && (
@@ -252,15 +252,18 @@ const AdminPanel = ({ user }) => {
                  </thead>
                  <tbody>
                    {filteredHistory.map(rec => {
-                     let roundedHrs = 0;
                      let actualTimeStr = "0h 0m";
+                     let exactHrs = 0;
                      
                      if (rec.checkInTime && rec.checkOutTime) {
                          const start = new Date(rec.checkInTime);
                          let end = new Date(rec.checkOutTime);
 
-                         const sixPM = new Date(start);
-                         sixPM.setHours(18, 0, 0, 0);
+                         if (end < start) end = start;
+
+                         const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+                         const ymd = formatter.format(start);
+                         const sixPM = new Date(`${ymd}T18:00:00+05:30`);
                          if (end > sixPM) end = sixPM;
                          
                          const diffMs = end - start;
@@ -268,30 +271,23 @@ const AdminPanel = ({ user }) => {
                              const actualMinutes = Math.floor(diffMs / (1000 * 60));
                              const baseHours = Math.floor(actualMinutes / 60);
                              const remainder = actualMinutes % 60;
-                             actualTimeStr = `${baseHours}h ${remainder}m`;
-                             
-                             let fraction = 0.00;
-                             if (remainder <= 14) fraction = 0.00;
-                             else if (remainder <= 29) fraction = 0.15;
-                             else if (remainder <= 44) fraction = 0.30;
-                             else fraction = 0.45;
-                             
-                             roundedHrs = baseHours + fraction;
+                             actualTimeStr = `${baseHours} hours ${remainder} minutes`;
+                             exactHrs = actualMinutes / 60;
                          }
                      }
 
                       const emp = employees.find(e => e.employeeId === rec.employeeId);
                       const rate = emp ? (emp.hourlyRate || 41.5) : 41.5;
-                      let sal = Math.round(roundedHrs * rate * 100) / 100;
+                      let sal = Math.round(exactHrs * rate * 100) / 100;
 
                      return (
                      <tr key={rec.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                       <td style={{ padding: '16px 20px', fontWeight: '500' }}>{new Date(rec.date).toLocaleDateString()}</td>
+                       <td style={{ padding: '16px 20px', fontWeight: '500' }}>{new Date(rec.date).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' })}</td>
                        <td style={{ padding: '16px 20px', fontWeight: '700', color: 'var(--text-main)' }}>{getEmployeeName(rec.employeeId)}</td>
                        <td style={{ padding: '16px 20px', fontWeight: '700', color: 'var(--primary)' }}>{rec.employeeId}</td>
-                       <td style={{ padding: '16px 20px', color: 'var(--success)' }}>{new Date(rec.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                       <td style={{ padding: '16px 20px', color: 'var(--secondary-dark)' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--'}</td>
-                       <td style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--success)' }}>{roundedHrs} hrs</td>
+                       <td style={{ padding: '16px 20px', color: 'var(--success)' }}>{new Date(rec.checkInTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour:'2-digit', minute:'2-digit', hour12: true})}</td>
+                       <td style={{ padding: '16px 20px', color: 'var(--secondary-dark)' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour:'2-digit', minute:'2-digit', hour12: true}) : '--'}</td>
+                       <td style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--success)' }}>{actualTimeStr}</td>
                        <td style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--success)' }}>Rs. {sal}</td>
                        <td style={{ padding: '16px 20px' }}>
                          <span style={{ background: '#ECFDF5', color: '#059669', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
@@ -311,7 +307,12 @@ const AdminPanel = ({ user }) => {
         {activeTab === 'employees' && (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Employees List</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                 <button className="btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'white', border: '1px solid var(--border)' }} onClick={() => setActiveTab('dashboard')}>
+                    <ArrowLeft size={20} color="var(--text-main)" />
+                 </button>
+                 <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Employees List</h2>
+              </div>
               <button className="btn btn-primary" style={{ width: 'auto', padding: '12px 20px' }} onClick={() => setShowAdd(!showAdd)}>
                 <Plus size={20} style={{ marginRight: '6px' }} /> ADD NEW EMPLOYEE
               </button>
@@ -435,8 +436,13 @@ const AdminPanel = ({ user }) => {
 
         {activeTab === 'reports' && (
           <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+               <button className="btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'white', border: '1px solid var(--border)' }} onClick={() => setActiveTab('dashboard')}>
+                  <ArrowLeft size={20} color="var(--text-main)" />
+               </button>
+               <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Salary Reports</h2>
+            </div>
             <div className="mobile-stack mb-4" style={{ justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Salary Reports</h2>
               <select className="card" style={{ margin: 0, padding: '10px 16px', fontWeight: 'bold', fontSize: '0.9rem', border: '2px solid var(--primary)', outline: 'none', width: '100%', maxWidth: '240px' }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
                 {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
               </select>
@@ -499,8 +505,8 @@ const AdminPanel = ({ user }) => {
                     <div>
                       <div className="mobile-stack mb-6">
                         <div style={{ flex: 1, background: 'var(--primary)', color: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Hours</div>
-                          <div style={{ fontSize: '1.75rem', fontWeight: '900' }}>{sal.absoluteTotalHours}</div>
+                          <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Total Time</div>
+                          <div style={{ fontSize: '1.75rem', fontWeight: '900' }}>{sal.formattedTotalTime}</div>
                         </div>
                         <div style={{ flex: 1, background: 'var(--success)', color: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center' }}>
                           <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Salary (₹)</div>
@@ -529,8 +535,10 @@ const AdminPanel = ({ user }) => {
                              if (rec.checkInTime && rec.checkOutTime) {
                                const start = new Date(rec.checkInTime);
                                let end = new Date(rec.checkOutTime);
-                               const sixPM = new Date(start);
-                               sixPM.setHours(18, 0, 0, 0);
+                               if (end < start) end = start;
+                               const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+                               const ymd = formatter.format(start);
+                               const sixPM = new Date(`${ymd}T18:00:00+05:30`);
                                if (end > sixPM) end = sixPM;
                                
                                const diffMs = end - start;
@@ -538,21 +546,14 @@ const AdminPanel = ({ user }) => {
                                    const actualMinutes = Math.floor(diffMs / (1000 * 60));
                                    const baseHours = Math.floor(actualMinutes / 60);
                                    const remainder = actualMinutes % 60;
-                                   
-                                   let fraction = 0.00;
-                                   if (remainder <= 14) fraction = 0.00;
-                                   else if (remainder <= 29) fraction = 0.15;
-                                   else if (remainder <= 44) fraction = 0.30;
-                                   else fraction = 0.45;
-                                   
-                                   hrs = `${(baseHours + fraction).toFixed(2)}`;
+                                   hrs = `${baseHours} hours ${remainder} minutes`;
                                }
                              }
                              return (
                                <tr key={rec.id} style={{ borderBottom: i === sal.records.length - 1 ? 'none' : '1px solid var(--border)' }}>
-                                 <td style={{ padding: '12px', fontSize: '0.85rem' }}>{new Date(rec.date).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</td>
-                                 <td style={{ padding: '12px', color: 'var(--success)', fontSize: '0.85rem' }}>{new Date(rec.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                                 <td style={{ padding: '12px', color: 'var(--secondary-dark)', fontSize: '0.85rem' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Active'}</td>
+                                 <td style={{ padding: '12px', fontSize: '0.85rem' }}>{new Date(rec.date).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', month:'short', day:'numeric'})}</td>
+                                 <td style={{ padding: '12px', color: 'var(--success)', fontSize: '0.85rem' }}>{new Date(rec.checkInTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour:'2-digit', minute:'2-digit', hour12: true})}</td>
+                                 <td style={{ padding: '12px', color: 'var(--secondary-dark)', fontSize: '0.85rem' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour:'2-digit', minute:'2-digit', hour12: true}) : 'Active'}</td>
                                  <td style={{ padding: '12px', fontWeight: '800', fontSize: '0.85rem' }}>{hrs}</td>
                                </tr>
                              )

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Clock, CheckCircle } from 'lucide-react';
+import { LogOut, Clock, CheckCircle, ArrowLeft } from 'lucide-react';
 import { api } from '../utils/api';
 
 const EmployeeDashboard = ({ user }) => {
@@ -19,7 +19,7 @@ const EmployeeDashboard = ({ user }) => {
       setStats(statsData);
 
       const allAtt = await api.get('/attendance');
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
       const meToday = allAtt.find(a => a.employeeId.toUpperCase() === user.employeeId.toUpperCase() && a.date === today);
       setTodayRecord(meToday || null);
     } catch (e) {
@@ -91,9 +91,15 @@ const EmployeeDashboard = ({ user }) => {
 
         {activeTab === 'attendance' && (
           <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+               <button className="btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'white', border: '1px solid var(--border)' }} onClick={() => setActiveTab('dashboard')}>
+                  <ArrowLeft size={20} color="var(--text-main)" />
+               </button>
+               <h2 style={{ margin: 0, fontSize: '1.5rem' }}>My Attendance</h2>
+            </div>
             <div className="card text-center" style={{ padding: '48px 24px', marginTop: '16px' }}>
               <h3 style={{ fontSize: '1.75rem', marginBottom: '8px' }}>Attendance Interface</h3>
-              <p className="text-muted mb-4" style={{ marginBottom: '32px' }}>Verify your presence for {new Date().toLocaleDateString()}</p>
+              <p className="text-muted mb-4" style={{ marginBottom: '32px' }}>Verify your presence for {new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' })}</p>
 
               <div style={{ maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {!isCheckedIn && !isCheckedOut && !isPastSix && (

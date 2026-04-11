@@ -11,7 +11,7 @@ const CheckInOut = ({ employees }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [location, setLocation] = useState(null);
-  const [time, setTime] = useState(new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' }));
+  const [time, setTime] = useState(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' }));
   
   const videoRef = useRef(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -21,7 +21,7 @@ const CheckInOut = ({ employees }) => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' }));
+      setTime(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' }));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -36,7 +36,7 @@ const CheckInOut = ({ employees }) => {
     
     const fetchData = async () => {
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
         // Fetch all attendance logs to parse history
         const allData = await api.get(`/attendance`);
         const userRecords = allData.filter(a => a.employeeId === id).sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -181,12 +181,12 @@ const CheckInOut = ({ employees }) => {
               {history.slice(0, 5).map(rec => (
                  <div key={rec.id} style={{ background: 'var(--bg-color)', padding: '16px', borderRadius: '12px', fontSize: '0.95rem' }}>
                     <div className="flex justify-between items-center mb-2">
-                      <span style={{ fontWeight: 600 }}>{new Date(rec.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                      <span style={{ fontWeight: 600 }}>{new Date(rec.date).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric' })}</span>
                       <span style={{ color: rec.status === 'Present' ? 'var(--success)' : 'var(--text-muted)' }}>{rec.status}</span>
                     </div>
                     <div className="flex justify-between text-muted" style={{ fontSize: '0.9rem' }}>
-                      <span>In: {new Date(rec.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                      <span>Out: {rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Pending'}</span>
+                      <span>In: {new Date(rec.checkInTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute:'2-digit', hour12: true})}</span>
+                      <span>Out: {rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute:'2-digit', hour12: true}) : 'Pending'}</span>
                     </div>
                  </div>
               ))}
