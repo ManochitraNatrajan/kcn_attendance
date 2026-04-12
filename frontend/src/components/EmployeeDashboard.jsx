@@ -8,9 +8,15 @@ const EmployeeDashboard = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [todayRecord, setTodayRecord] = useState(null);
+  const [isPastSix, setIsPastSix] = useState(false);
 
   useEffect(() => {
     fetchData();
+    const timer = setInterval(() => {
+        const istTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+        setIsPastSix(istTime.getHours() >= 18);
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const fetchData = async () => {
@@ -45,7 +51,6 @@ const EmployeeDashboard = ({ user }) => {
     }
   };
 
-  const isPastSix = new Date().getHours() >= 18;
   const isCheckedIn = todayRecord && !todayRecord.checkOutTime;
   const isCheckedOut = todayRecord && todayRecord.checkOutTime;
   const isAbsent = !todayRecord && isPastSix;
@@ -108,22 +113,34 @@ const EmployeeDashboard = ({ user }) => {
                   </button>
                 )}
 
-                {isAbsent && (
-                  <div style={{ background: '#FEF2F2', border: '2px solid #F87171', padding: '24px', borderRadius: '12px', color: '#991B1B', fontWeight: '700', fontSize: '1.2rem' }}>
-                    Check-in is closed for today. You are marked as Absent.
+                {!isCheckedIn && !isCheckedOut && isPastSix && (
+                  <div className="flex-col gap-2">
+                    <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', fontSize: '1.25rem', padding: '20px', opacity: 0.5 }} disabled={true}>
+                      CHECK IN CLOSED
+                    </button>
+                    <div style={{ background: '#FEF2F2', border: '1px solid #F87171', padding: '24px', borderRadius: '12px', color: '#991B1B', fontWeight: '700', fontSize: '1.2rem', marginTop: '16px' }}>
+                      Absent for today
+                    </div>
                   </div>
                 )}
 
                 {isCheckedIn && (
-                  <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', fontSize: '1.25rem', padding: '20px' }} onClick={() => handleCheck('check-out')} disabled={submitting}>
-                    <LogOut size={24} style={{ marginRight: '10px' }}/> CHECK OUT NOW
-                  </button>
+                  isPastSix ? (
+                    <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem' }}>
+                      <CheckCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--success)' }} />
+                      Completed attendance for today
+                    </div>
+                  ) : (
+                    <button className="btn" style={{ backgroundColor: '#EF4444', color: 'white', fontSize: '1.25rem', padding: '20px' }} onClick={() => handleCheck('check-out')} disabled={submitting}>
+                      <LogOut size={24} style={{ marginRight: '10px' }}/> CHECK OUT NOW
+                    </button>
+                  )
                 )}
 
                 {isCheckedOut && (
                   <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem' }}>
                     <CheckCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--success)' }} />
-                    Successfully recorded check-out for today.
+                    Completed attendance for today
                   </div>
                 )}
               </div>

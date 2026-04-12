@@ -42,13 +42,20 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 41.5) => 
   const baseHours = Math.floor(totalMinutes / 60);
   const remainderMinutes = totalMinutes % 60;
   
-  const exactHours = totalMinutes / 60;
-  const salary = Math.round(exactHours * hourlyRate * 100) / 100;
+  let fractionalHour = 0;
+  if (remainderMinutes >= 0 && remainderMinutes <= 10) fractionalHour = 0;
+  else if (remainderMinutes >= 11 && remainderMinutes <= 20) fractionalHour = 0.25;
+  else if (remainderMinutes >= 21 && remainderMinutes <= 40) fractionalHour = 0.5;
+  else if (remainderMinutes >= 41 && remainderMinutes <= 50) fractionalHour = 0.75;
+  else if (remainderMinutes >= 51 && remainderMinutes <= 59) fractionalHour = 1.0;
+  
+  const finalHours = baseHours + fractionalHour;
+  const salary = Math.round(finalHours * hourlyRate * 100) / 100;
   
   const actualTime = `${baseHours} hours ${remainderMinutes} minutes`;
   
   return { 
-    hours: Math.round(exactHours * 100) / 100, 
+    hours: finalHours, 
     salary, 
     actualTime, 
     baseHours, 
@@ -78,7 +85,21 @@ cron.schedule('0 18 * * *', async () => {
       record.checkOutTime = isoTimestamp;
       record.workedHours = hours;
       record.dailySalary = salary;
+      record.status = hours >= 8 ? 'Full Day' : 'Present';
       await record.save();
+    }
+
+    // Auto-mark Absent for ALL users without check-ins today
+    const allUsers = await User.find({ role: 'employee' });
+    for (const user of allUsers) {
+      const existing = await Attendance.findOne({ employeeId: user.employeeId, date: today });
+      if (!existing) {
+        await Attendance.create({
+          employeeId: user.employeeId,
+          date: today,
+          status: 'Absent'
+        });
+      }
     }
   } catch (error) {
     console.error('[Cron] Error in auto-checkout:', error);
@@ -221,13 +242,18 @@ app.post('/api/attendance', async (req, res) => {
          return res.status(400).json({ message: 'Checkout time cannot be earlier than checkin time. If this is a next day shift, please contact admin.' });
       }
 
+      let finalCheckOut = new Date(timestamp);
+      const sixPM = new Date(getSixPM_IST_ISO(checkInTimeDate));
+      if (finalCheckOut > sixPM) finalCheckOut = sixPM;
+
       const user = await User.findOne({ employeeId: record.employeeId });
       const rate = user ? (user.hourlyRate || 41.5) : 41.5;
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, timestamp, rate);
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, finalCheckOut.toISOString(), rate);
 
-      record.checkOutTime = timestamp;
+      record.checkOutTime = finalCheckOut.toISOString();
       record.workedHours = hours;
       record.dailySalary = salary;
+      record.status = hours >= 8 ? 'Full Day' : 'Present';
       await record.save();
       return res.json(record);
     }
@@ -251,6 +277,7 @@ app.post('/api/attendance/auto-checkout', async (req, res) => {
       record.checkOutTime = isoTimestamp;
       record.workedHours = hours;
       record.dailySalary = salary;
+      record.status = hours >= 8 ? 'Full Day' : 'Present';
       await record.save();
     }
     res.json({ success: true });
