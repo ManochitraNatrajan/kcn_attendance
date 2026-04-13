@@ -108,6 +108,47 @@ cron.schedule('0 18 * * *', async () => {
   timezone: "Asia/Kolkata"
 });
 
+const lazyAutoCheckout = async () => {
+  try {
+    const activeRecords = await Attendance.find({ 
+      checkOutTime: { $exists: false },
+      status: 'Present'
+    });
+
+    if (activeRecords.length === 0) return;
+
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    const todayStr = formatter.format(nowIST);
+
+    for (const record of activeRecords) {
+      let shouldCheckout = false;
+      if (record.date < todayStr) {
+        shouldCheckout = true; // Any past day
+      } else if (record.date === todayStr && nowIST.getHours() >= 18) {
+        shouldCheckout = true; // Today and past 6 PM
+      }
+
+      if (shouldCheckout) {
+        const checkInTimeDate = new Date(record.checkInTime);
+        const isoTimestamp = getSixPM_IST_ISO(checkInTimeDate);
+
+        const user = await User.findOne({ employeeId: record.employeeId });
+        const rate = user ? (user.hourlyRate || 41.5) : 41.5;
+        const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, rate);
+        
+        record.checkOutTime = isoTimestamp;
+        record.workedHours = hours;
+        record.dailySalary = salary;
+        record.status = hours >= 8 ? 'Full Day' : 'Present';
+        await record.save();
+      }
+    }
+  } catch (error) {
+    console.error('[Lazy AutoCheckout] Error:', error);
+  }
+};
+
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password, employeeId } = req.body;
@@ -185,6 +226,7 @@ app.delete('/api/employees/:id', async (req, res) => {
 
 app.get('/api/attendance', async (req, res) => {
   try {
+    await lazyAutoCheckout();
     const attendance = await Attendance.find();
     res.json(attendance);
   } catch (error) {
@@ -194,6 +236,7 @@ app.get('/api/attendance', async (req, res) => {
 
 app.get('/api/attendance/stats', async (req, res) => {
   try {
+    await lazyAutoCheckout();
     const today = new Date().toISOString().split('T')[0];
     const empsCount = await User.countDocuments();
     const presentCount = await Attendance.countDocuments({ date: today });

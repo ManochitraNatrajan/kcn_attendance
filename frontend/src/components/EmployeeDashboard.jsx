@@ -19,6 +19,14 @@ const EmployeeDashboard = ({ user }) => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (isPastSix && todayRecord && !todayRecord.checkOutTime) {
+      api.post('/attendance/auto-checkout', { employeeId: user.employeeId })
+        .then(() => fetchData())
+        .catch(console.error);
+    }
+  }, [isPastSix, todayRecord, user.employeeId]);
+
   const fetchData = async () => {
     try {
       const statsData = await api.get('/attendance/stats');
@@ -128,7 +136,7 @@ const EmployeeDashboard = ({ user }) => {
                   isPastSix ? (
                     <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem' }}>
                       <CheckCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--success)' }} />
-                      Completed attendance for today
+                      Marked Attendance
                     </div>
                   ) : (
                     <button className="btn" style={{ backgroundColor: '#EF4444', color: 'white', fontSize: '1.25rem', padding: '20px' }} onClick={() => handleCheck('check-out')} disabled={submitting}>
@@ -140,7 +148,7 @@ const EmployeeDashboard = ({ user }) => {
                 {isCheckedOut && (
                   <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem' }}>
                     <CheckCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--success)' }} />
-                    Completed attendance for today
+                    Marked Attendance
                   </div>
                 )}
               </div>

@@ -7,43 +7,19 @@ import './index.css';
 
 function App() {
   const [user, setUser] = useState(() => {
-    const saved = sessionStorage.getItem('kcn_user');
+    const saved = localStorage.getItem('kcn_user');
     return saved ? JSON.parse(saved) : null;
   });
 
   const handleLogin = (userData) => {
     setUser(userData);
-    sessionStorage.setItem('kcn_user', JSON.stringify(userData));
+    localStorage.setItem('kcn_user', JSON.stringify(userData));
   };
 
   const handleLogout = () => {
     setUser(null);
-    sessionStorage.removeItem('kcn_user');
+    localStorage.removeItem('kcn_user');
   };
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const now = new Date();
-    const sixPM = new Date();
-    sixPM.setHours(18, 0, 0, 0);
-
-    const msUntilSixPM = sixPM.getTime() - now.getTime();
-    
-    // Only schedule if 6 PM is in the future for today
-    if (msUntilSixPM > 0) {
-      const timeout = setTimeout(async () => {
-        try {
-          await api.post('/attendance/auto-checkout', { employeeId: user.employeeId });
-        } catch (e) {
-          console.error('Auto-checkout failed', e);
-        }
-        handleLogout();
-      }, msUntilSixPM);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [user]);
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)' }}>
