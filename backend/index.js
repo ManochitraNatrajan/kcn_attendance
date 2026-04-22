@@ -15,23 +15,32 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/finance-at
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-// Helper to get exactly 6:00 PM IST (Asia/Kolkata) for a given date reference
-const getSixPM_IST_ISO = (dateRef = new Date()) => {
+// Helper to get exactly 5:45 PM IST (Asia/Kolkata) for a given date reference
+const get545PM_IST_ISO = (dateRef = new Date()) => {
   const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
   const ymd = formatter.format(dateRef); // Returns YYYY-MM-DD in IST
-  return new Date(`${ymd}T18:00:00+05:30`).toISOString();
+  return new Date(`${ymd}T17:45:00+05:30`).toISOString();
 };
+
 const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 41.5) => {
-  const start = new Date(checkIn);
+  let start = new Date(checkIn);
   let end = new Date(checkOut);
   
   if (end < start) {
     end = start;
   }
 
-  // Cap at 6:00 PM (18:00) IST for salary calculation
-  const sixPM = new Date(getSixPM_IST_ISO(start));
-  if (end > sixPM) end = sixPM;
+  // Reference times
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const ymd = formatter.format(start);
+  const nineFortyFiveAM = new Date(`${ymd}T09:45:00+05:30`);
+  const fiveFortyFivePM = new Date(`${ymd}T17:45:00+05:30`);
+
+  // Cap checkOut at 5:45 PM
+  if (end > fiveFortyFivePM) end = fiveFortyFivePM;
+  
+  // Cap checkIn at 9:45 AM (if checked in earlier, calculation starts from 9:45 AM)
+  if (start < nineFortyFiveAM) start = nineFortyFiveAM;
 
   const diffMs = end - start;
   let totalMinutes = 0;
@@ -39,18 +48,12 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 41.5) => 
      totalMinutes = Math.floor(diffMs / (1000 * 60));
   }
   
+  let salary = totalMinutes * 0.69166;
+  salary = Math.round(salary * 100) / 100;
+  
   const baseHours = Math.floor(totalMinutes / 60);
   const remainderMinutes = totalMinutes % 60;
-  
-  let fractionalHour = 0;
-  if (remainderMinutes >= 0 && remainderMinutes <= 10) fractionalHour = 0;
-  else if (remainderMinutes >= 11 && remainderMinutes <= 20) fractionalHour = 0.25;
-  else if (remainderMinutes >= 21 && remainderMinutes <= 40) fractionalHour = 0.5;
-  else if (remainderMinutes >= 41 && remainderMinutes <= 50) fractionalHour = 0.75;
-  else if (remainderMinutes >= 51 && remainderMinutes <= 59) fractionalHour = 1.0;
-  
-  const finalHours = baseHours + fractionalHour;
-  const salary = Math.round(finalHours * hourlyRate * 100) / 100;
+  const finalHours = Math.round((totalMinutes / 60) * 100) / 100;
   
   const actualTime = `${baseHours} hours ${remainderMinutes} minutes`;
   
@@ -63,11 +66,11 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 41.5) => 
   };
 };
 
-// Cron Job: Auto-checkout at 6:00 PM daily IST
-cron.schedule('0 18 * * *', async () => {
+// Cron Job: Auto-checkout at 5:45 PM daily IST
+cron.schedule('45 17 * * *', async () => {
   try {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const isoTimestamp = getSixPM_IST_ISO();
+    const isoTimestamp = get545PM_IST_ISO();
 
     const activeRecords = await Attendance.find({ 
       date: today, 
@@ -75,7 +78,7 @@ cron.schedule('0 18 * * *', async () => {
       status: 'Present'
     });
 
-    console.log(`[Cron] Running auto-checkout for ${activeRecords.length} employees at 6:00 PM`);
+    console.log(`[Cron] Running auto-checkout for ${activeRecords.length} employees at 5:45 PM`);
 
     for (const record of activeRecords) {
       const user = await User.findOne({ employeeId: record.employeeId });
@@ -108,6 +111,39 @@ cron.schedule('0 18 * * *', async () => {
   timezone: "Asia/Kolkata"
 });
 
+// Cron Job: Next Day Start (12:00 AM) auto-checkout failsafe & absent marker
+cron.schedule('0 0 * * *', async () => {
+  try {
+    // This runs exactly at midnight for the previous day effectively, but we fetch any pending from past dates
+    const activeRecords = await Attendance.find({ 
+      checkOutTime: { $exists: false },
+      status: 'Present'
+    });
+
+    if (activeRecords.length > 0) {
+      console.log(`[Cron] Midnight Next-Day auto-checkout catching ${activeRecords.length} employees.`);
+      for (const record of activeRecords) {
+        const checkInTimeDate = new Date(record.checkInTime);
+        const isoTimestamp = get545PM_IST_ISO(checkInTimeDate);
+
+        const user = await User.findOne({ employeeId: record.employeeId });
+        const rate = user ? (user.hourlyRate || 41.5) : 41.5;
+        const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, rate);
+        
+        record.checkOutTime = isoTimestamp;
+        record.workedHours = hours;
+        record.dailySalary = salary;
+        record.status = hours >= 8 ? 'Full Day' : 'Present';
+        await record.save();
+      }
+    }
+  } catch (error) {
+    console.error('[Cron] Error in midnight auto-checkout:', error);
+  }
+}, {
+  timezone: "Asia/Kolkata"
+});
+
 const lazyAutoCheckout = async () => {
   try {
     const activeRecords = await Attendance.find({ 
@@ -125,13 +161,13 @@ const lazyAutoCheckout = async () => {
       let shouldCheckout = false;
       if (record.date < todayStr) {
         shouldCheckout = true; // Any past day
-      } else if (record.date === todayStr && nowIST.getHours() >= 18) {
-        shouldCheckout = true; // Today and past 6 PM
+      } else if (record.date === todayStr && (nowIST.getHours() * 60 + nowIST.getMinutes()) >= 1065) {
+        shouldCheckout = true; // Today and past 5:45 PM (1065 mins)
       }
 
       if (shouldCheckout) {
         const checkInTimeDate = new Date(record.checkInTime);
-        const isoTimestamp = getSixPM_IST_ISO(checkInTimeDate);
+        const isoTimestamp = get545PM_IST_ISO(checkInTimeDate);
 
         const user = await User.findOne({ employeeId: record.employeeId });
         const rate = user ? (user.hourlyRate || 41.5) : 41.5;
@@ -260,10 +296,15 @@ app.post('/api/attendance', async (req, res) => {
     let record = await Attendance.findOne({ employeeId, date });
 
     if (type === 'check-in') {
-      const nowHoursStr = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false }).format(new Date(timestamp));
-      const nowHours = parseInt(nowHoursStr, 10);
-      if (nowHours >= 18 && nowHours !== 24) { // Note: 24 might format depending on locale, safer check to just cap over 18.
-        return res.status(400).json({ message: 'Check-in is closed after 6:00 PM. You are marked as absent.' });
+      const istTimeStr = new Date(timestamp).toLocaleString("en-US", {timeZone: "Asia/Kolkata"});
+      const istDateObj = new Date(istTimeStr);
+      const currentMins = istDateObj.getHours() * 60 + istDateObj.getMinutes();
+      
+      if (currentMins >= 1065) {
+         return res.status(400).json({ message: 'Check-in is closed after 5:45 PM. You are marked as absent.' });
+      }
+      if (currentMins < 580) {
+         return res.status(400).json({ message: 'Check-in is only available from 9:40 AM onwards.' });
       }
 
       if (record) return res.status(400).json({ message: 'Already checked in today' });
@@ -286,8 +327,8 @@ app.post('/api/attendance', async (req, res) => {
       }
 
       let finalCheckOut = new Date(timestamp);
-      const sixPM = new Date(getSixPM_IST_ISO(checkInTimeDate));
-      if (finalCheckOut > sixPM) finalCheckOut = sixPM;
+      const fiveFortyFivePM = new Date(get545PM_IST_ISO(checkInTimeDate));
+      if (finalCheckOut > fiveFortyFivePM) finalCheckOut = fiveFortyFivePM;
 
       const user = await User.findOne({ employeeId: record.employeeId });
       const rate = user ? (user.hourlyRate || 41.5) : 41.5;
@@ -309,7 +350,7 @@ app.post('/api/attendance/auto-checkout', async (req, res) => {
   try {
     const { employeeId } = req.body;
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const isoTimestamp = getSixPM_IST_ISO();
+    const isoTimestamp = get545PM_IST_ISO();
 
     let record = await Attendance.findOne({ employeeId, date: today });
     if (record && !record.checkOutTime && record.status === 'Present') {

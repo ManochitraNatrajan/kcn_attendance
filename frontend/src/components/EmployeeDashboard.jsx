@@ -8,24 +8,34 @@ const EmployeeDashboard = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [todayRecord, setTodayRecord] = useState(null);
-  const [isPastSix, setIsPastSix] = useState(false);
+  const [isPast545PM, setIsPast545PM] = useState(false);
+  const [isPost940AM, setIsPost940AM] = useState(false);
+  const [currentDateStr, setCurrentDateStr] = useState(new Date().toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"}));
 
   useEffect(() => {
     fetchData();
     const timer = setInterval(() => {
         const istTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-        setIsPastSix(istTime.getHours() >= 18);
+        const mins = istTime.getHours() * 60 + istTime.getMinutes();
+        setIsPost940AM(mins >= 580);
+        setIsPast545PM(mins >= 1065);
+        
+        const newDateStr = istTime.toLocaleDateString("en-US", {timeZone: "Asia/Kolkata"});
+        if (newDateStr !== currentDateStr) {
+          setCurrentDateStr(newDateStr);
+          fetchData();
+        }
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [currentDateStr]);
 
   useEffect(() => {
-    if (isPastSix && todayRecord && !todayRecord.checkOutTime) {
+    if (isPast545PM && todayRecord && !todayRecord.checkOutTime) {
       api.post('/attendance/auto-checkout', { employeeId: user.employeeId })
         .then(() => fetchData())
         .catch(console.error);
     }
-  }, [isPastSix, todayRecord, user.employeeId]);
+  }, [isPast545PM, todayRecord, user.employeeId]);
 
   const fetchData = async () => {
     try {
@@ -61,7 +71,7 @@ const EmployeeDashboard = ({ user }) => {
 
   const isCheckedIn = todayRecord && !todayRecord.checkOutTime;
   const isCheckedOut = todayRecord && todayRecord.checkOutTime;
-  const isAbsent = !todayRecord && isPastSix;
+  const isAbsent = !todayRecord && isPast545PM;
 
   if (loading) return <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)' }}>Loading Dashboard...</div>;
 
@@ -115,13 +125,13 @@ const EmployeeDashboard = ({ user }) => {
               <p className="text-muted mb-4" style={{ marginBottom: '32px' }}>Verify your presence for {new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' })}</p>
 
               <div style={{ maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {!isCheckedIn && !isCheckedOut && !isPastSix && (
-                  <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', fontSize: '1.25rem', padding: '20px' }} onClick={() => handleCheck('check-in')} disabled={submitting}>
-                    <Clock size={24} style={{ marginRight: '10px' }}/> CHECK IN NOW
+                {!isCheckedIn && !isCheckedOut && !isPast545PM && (
+                  <button className="btn" style={{ backgroundColor: isPost940AM ? 'var(--success)' : '#9CA3AF', color: 'white', fontSize: '1.25rem', padding: '20px', opacity: isPost940AM ? 1 : 0.5 }} onClick={() => handleCheck('check-in')} disabled={submitting || !isPost940AM}>
+                    <Clock size={24} style={{ marginRight: '10px' }}/> {isPost940AM ? 'CHECK IN NOW' : 'OPENS AT 9:40 AM'}
                   </button>
                 )}
 
-                {!isCheckedIn && !isCheckedOut && isPastSix && (
+                {!isCheckedIn && !isCheckedOut && isPast545PM && (
                   <div className="flex-col gap-2">
                     <button className="btn" style={{ backgroundColor: 'var(--success)', color: 'white', fontSize: '1.25rem', padding: '20px', opacity: 0.5 }} disabled={true}>
                       CHECK IN CLOSED
@@ -133,22 +143,38 @@ const EmployeeDashboard = ({ user }) => {
                 )}
 
                 {isCheckedIn && (
-                  isPastSix ? (
-                    <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem' }}>
+                  isPast545PM ? (
+                    <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem', textAlign: 'left' }}>
                       <CheckCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--success)' }} />
-                      Marked Attendance
+                      <div style={{ textAlign: 'center', marginBottom: '16px' }}>Completed Attendance for Today</div>
+                      <div style={{ fontSize: '0.95rem', background: 'rgba(255,255,255,0.7)', padding: '12px', borderRadius: '8px' }}>
+                        <p style={{ margin: '4px 0' }}><strong>Check-in:</strong> {new Date(todayRecord.checkInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}</p>
+                        <p style={{ margin: '4px 0' }}><strong>Check-out:</strong> Pending Auto-checkout...</p>
+                      </div>
                     </div>
                   ) : (
-                    <button className="btn" style={{ backgroundColor: '#EF4444', color: 'white', fontSize: '1.25rem', padding: '20px' }} onClick={() => handleCheck('check-out')} disabled={submitting}>
-                      <LogOut size={24} style={{ marginRight: '10px' }}/> CHECK OUT NOW
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', padding: '16px', borderRadius: '12px', color: '#374151', fontSize: '1rem', textAlign: 'left' }}>
+                        <p style={{ margin: '4px 0' }}><strong>Check-in Time:</strong> {new Date(todayRecord.checkInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}</p>
+                      </div>
+                      <button className="btn" style={{ backgroundColor: '#EF4444', color: 'white', fontSize: '1.25rem', padding: '20px' }} onClick={() => handleCheck('check-out')} disabled={submitting}>
+                        <LogOut size={24} style={{ marginRight: '10px' }}/> CHECK OUT NOW
+                      </button>
+                    </div>
                   )
                 )}
 
                 {isCheckedOut && (
-                  <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem' }}>
+                  <div style={{ background: '#ECFDF5', border: '2px solid #34D399', padding: '24px', borderRadius: '12px', color: '#065F46', fontWeight: '700', fontSize: '1.1rem', textAlign: 'left' }}>
                     <CheckCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--success)' }} />
-                    Marked Attendance
+                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>Completed Attendance for Today</div>
+                    <div style={{ fontSize: '0.95rem', background: 'rgba(255,255,255,0.7)', padding: '12px', borderRadius: '8px' }}>
+                      <p style={{ margin: '4px 0' }}><strong>Check-in:</strong> {new Date(todayRecord.checkInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}</p>
+                      <p style={{ margin: '4px 0' }}><strong>Check-out:</strong> {new Date(todayRecord.checkOutTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}</p>
+                      <hr style={{ margin: '12px 0', borderColor: 'rgba(52, 211, 153, 0.3)' }} />
+                      <p style={{ margin: '4px 0' }}><strong>Hours Worked:</strong> {todayRecord.workedHours} hr</p>
+                      <p style={{ margin: '4px 0' }}><strong>Daily Salary:</strong> ₹{todayRecord.dailySalary != null ? parseFloat(todayRecord.dailySalary).toFixed(2) : '0.00'}</p>
+                    </div>
                   </div>
                 )}
               </div>
