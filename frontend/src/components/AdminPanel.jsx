@@ -13,9 +13,9 @@ const AdminPanel = ({ user }) => {
   const [todayRecord, setTodayRecord] = useState(null);
   
   const [showAdd, setShowAdd] = useState(false);
-  const [newEmp, setNewEmp] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee', hourlyRate: 0 });
+  const [newEmp, setNewEmp] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
   const [editingEmp, setEditingEmp] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee', hourlyRate: 0 });
+  const [editForm, setEditForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
 
   // Salary Modal State
   const [selectedEmp, setSelectedEmp] = useState(null);
@@ -72,7 +72,7 @@ const AdminPanel = ({ user }) => {
   const handleEditClick = (emp, e) => {
     e.stopPropagation();
     setEditingEmp(emp.id);
-    setEditForm({ name: emp.name, employeeId: emp.employeeId, email: emp.email, password: emp.password, role: emp.role || 'employee', hourlyRate: emp.hourlyRate || 0 });
+    setEditForm({ name: emp.name, employeeId: emp.employeeId, email: emp.email, password: emp.password, role: emp.role || 'employee' });
   };
 
   const handleUpdateEmployee = async (e) => {
@@ -103,7 +103,6 @@ const AdminPanel = ({ user }) => {
   const calculateSalary = (emp, targetMonth) => {
     const empRecords = history.filter(h => h.employeeId === emp.employeeId && h.date.startsWith(targetMonth));
     let totalMinutes = 0;
-    const rate = emp.hourlyRate || 41.5;
     
     empRecords.forEach(r => {
       if (r.checkInTime && r.checkOutTime) {
@@ -126,16 +125,16 @@ const AdminPanel = ({ user }) => {
     });
 
     const finalBaseHours = Math.floor(totalMinutes / 60);
-    const finalRemainder = totalMinutes % 60;
+    const finalRemainder = Math.floor(totalMinutes % 60);
     const exactTotalHours = totalMinutes / 60;
 
-    const totalSalary = Math.round(exactTotalHours * rate * 100) / 100;
+    const totalSalary = totalMinutes * (37.9753 / 60);
 
     return { 
       records: empRecords, 
       totalSalary: totalSalary.toFixed(2), 
       formattedTotalTime: `${finalBaseHours} hours ${finalRemainder} minutes`,
-      absoluteTotalHours: (Math.round(exactTotalHours * 100) / 100).toFixed(2) 
+      absoluteTotalHours: exactTotalHours.toFixed(2) 
     };
   };
 
@@ -253,7 +252,7 @@ const AdminPanel = ({ user }) => {
                  <tbody>
                    {filteredHistory.map(rec => {
                      let actualTimeStr = "0h 0m";
-                     let exactHrs = 0;
+                     let exactMins = 0;
                      
                      if (rec.checkInTime && rec.checkOutTime) {
                          const start = new Date(rec.checkInTime);
@@ -270,15 +269,13 @@ const AdminPanel = ({ user }) => {
                          if (diffMs > 0) {
                              const actualMinutes = Math.floor(diffMs / (1000 * 60));
                              const baseHours = Math.floor(actualMinutes / 60);
-                             const remainder = actualMinutes % 60;
+                             const remainder = Math.floor(actualMinutes % 60);
                              actualTimeStr = `${baseHours} hours ${remainder} minutes`;
-                             exactHrs = actualMinutes / 60;
+                             exactMins = actualMinutes;
                          }
                      }
 
-                      const emp = employees.find(e => e.employeeId === rec.employeeId);
-                      const rate = emp ? (emp.hourlyRate || 41.5) : 41.5;
-                      let sal = Math.round(exactHrs * rate * 100) / 100;
+                      let sal = (exactMins * (37.9753 / 60)).toFixed(2);
 
                      return (
                      <tr key={rec.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -341,10 +338,6 @@ const AdminPanel = ({ user }) => {
                     <label>Email Address</label>
                     <input required type="email" value={newEmp.email} onChange={e => setNewEmp({...newEmp, email: e.target.value})} placeholder="john@kcn.com" />
                   </div>
-                  <div className="input-group">
-                    <label>Hourly Rate (₹)</label>
-                    <input required type="number" value={newEmp.hourlyRate} onChange={e => setNewEmp({...newEmp, hourlyRate: parseFloat(e.target.value) || 0})} placeholder="100" />
-                  </div>
                   <div className="input-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Initial Password</label>
                     <input required type="text" value={newEmp.password} onChange={e => setNewEmp({...newEmp, password: e.target.value})} placeholder="password123" />
@@ -383,10 +376,6 @@ const AdminPanel = ({ user }) => {
                          <div className="input-group">
                            <label>Email Address</label>
                            <input required type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
-                         </div>
-                         <div className="input-group">
-                           <label>Hourly Rate (₹)</label>
-                           <input required type="number" value={editForm.hourlyRate} onChange={e => setEditForm({...editForm, hourlyRate: parseFloat(e.target.value) || 0})} />
                          </div>
                          <div className="input-group" style={{ gridColumn: '1 / -1' }}>
                            <label>Password</label>
@@ -456,7 +445,6 @@ const AdminPanel = ({ user }) => {
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Month</th>
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Total Days Worked</th>
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Total Monthly Hours</th>
-                     <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Hourly Rate</th>
                      <th style={{ padding: '16px 20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Monthly Salary</th>
                    </tr>
                  </thead>
@@ -470,7 +458,6 @@ const AdminPanel = ({ user }) => {
                          <td style={{ padding: '16px 20px', fontWeight: '500' }}>{formatMonth(selectedMonth)}</td>
                          <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>{salInfo.records.length}</td>
                          <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>{salInfo.absoluteTotalHours} Hours</td>
-                         <td style={{ padding: '16px 20px', color: 'var(--text-muted)' }}>Rs. {emp.hourlyRate || 41.5}</td>
                          <td style={{ padding: '16px 20px', fontWeight: '900', color: 'var(--success)', fontSize: '1.1rem' }}>Rs. {salInfo.totalSalary}</td>
                        </tr>
                      );
@@ -515,7 +502,7 @@ const AdminPanel = ({ user }) => {
                       </div>
 
                       <div style={{ background: '#EFF6FF', padding: '16px', borderRadius: '12px', color: '#1E40AF', fontSize: '0.85rem', borderLeft: '4px solid #3B82F6', marginBottom: '24px' }}>
-                        <strong>Policy:</strong> Calculated based on worked hours x hourly rate, capped at 6 PM.
+                        <strong>Policy:</strong> Calculated strictly based on worked minutes x (37.9753 / 60), capped at 6 PM.
                       </div>
 
                      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>Attendance Logs</h3>
@@ -545,7 +532,7 @@ const AdminPanel = ({ user }) => {
                                if (diffMs > 0) {
                                    const actualMinutes = Math.floor(diffMs / (1000 * 60));
                                    const baseHours = Math.floor(actualMinutes / 60);
-                                   const remainder = actualMinutes % 60;
+                                   const remainder = Math.floor(actualMinutes % 60);
                                    hrs = `${baseHours} hours ${remainder} minutes`;
                                }
                              }
