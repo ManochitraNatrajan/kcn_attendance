@@ -1,0 +1,16 @@
+{
+  "short_name": "Attendance",
+  "name": "KCN Staff Attendance Portal",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#ed5c5c",
+  "background_color": "#ffffff"
+}

@@ -353,8 +353,8 @@ app.post('/api/attendance/auto-checkout', async (req, res) => {
   }
 });
 
-// Serve static files from the frontend/dist directory
-const distPath = path.join(__dirname, '../frontend/dist');
+// Serve static files from the local dist directory
+const distPath = path.join(__dirname, 'dist');
 const indexPath = path.join(distPath, 'index.html');
 
 if (!fs.existsSync(distPath)) {
