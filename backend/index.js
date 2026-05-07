@@ -1,6 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
+const fs = require('fs');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
@@ -353,11 +354,26 @@ app.post('/api/attendance/auto-checkout', async (req, res) => {
 });
 
 // Serve static files from the frontend/dist directory
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+const distPath = path.join(__dirname, '../frontend/dist');
+const indexPath = path.join(distPath, 'index.html');
+
+if (!fs.existsSync(distPath)) {
+  console.error(`[Static File Warning] Dist directory NOT found at: ${distPath}`);
+} else if (!fs.existsSync(indexPath)) {
+  console.error(`[Static File Warning] index.html NOT found at: ${indexPath}`);
+} else {
+  console.log(`[Static File Info] Serving static files from: ${distPath}`);
+}
+
+app.use(express.static(distPath));
 
 // Wildcard route to serve index.html for client-side routing
 app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send(`Error: frontend/dist/index.html not found. Path: ${indexPath}`);
+  }
 });
 
 mongoose.connect(MONGO_URI)
