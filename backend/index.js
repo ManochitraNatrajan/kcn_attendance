@@ -23,7 +23,7 @@ const get600PM_IST_ISO = (dateRef = new Date()) => {
   return new Date(`${ymd}T18:00:00+05:30`).toISOString();
 };
 
-const calculateWorkedHoursAndSalary = (checkIn, checkOut) => {
+const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 0) => {
   let start = new Date(checkIn);
   let end = new Date(checkOut);
   
@@ -40,8 +40,9 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut) => {
   // Cap checkOut at 6:00 PM
   if (end > sixPM) end = sixPM;
   
-  // Cap checkIn at 9:30 AM (if checked in earlier, calculation starts from 9:30 AM)
-  if (start < nineThirtyAM) start = nineThirtyAM;
+  // Cap checkIn at 8:55 AM
+  const eightFiftyFiveAM = new Date(`${ymd}T08:55:00+05:30`);
+  if (start < eightFiftyFiveAM) start = eightFiftyFiveAM;
 
   const diffMs = end - start;
   let totalMinutes = 0;
@@ -49,7 +50,7 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut) => {
      totalMinutes = Math.floor(diffMs / (1000 * 60));
   }
   
-  let salary = totalMinutes * (37.9753 / 60);
+  let salary = totalMinutes * (hourlyRate / 60);
   
   const finalHours = totalMinutes / 60;
   
@@ -74,13 +75,15 @@ cron.schedule('0 18 * * *', async () => {
     console.log(`[Cron] Running auto-checkout for ${activeRecords.length} employees at 6:00 PM`);
 
     for (const record of activeRecords) {
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
+      // Auto checkout disabled per request
+      // const user = await User.findOne({ employeeId: record.employeeId });
+      // const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
       
-      record.checkOutTime = isoTimestamp;
-      record.workedHours = hours;
-      record.dailySalary = salary;
-      record.status = hours >= 8 ? 'Full Day' : 'Present';
-      await record.save();
+      // record.checkOutTime = isoTimestamp;
+      // record.workedHours = hours;
+      // record.dailySalary = salary;
+      // record.status = hours >= 8 ? 'Full Day' : 'Present';
+      // await record.save();
     }
 
     // Auto-mark Absent for ALL users without check-ins today
@@ -114,16 +117,18 @@ cron.schedule('0 0 * * *', async () => {
     if (activeRecords.length > 0) {
       console.log(`[Cron] Midnight Next-Day auto-checkout catching ${activeRecords.length} employees.`);
       for (const record of activeRecords) {
-        const checkInTimeDate = new Date(record.checkInTime);
-        const isoTimestamp = get600PM_IST_ISO(checkInTimeDate);
+        // Auto checkout disabled per request
+        // const user = await User.findOne({ employeeId: record.employeeId });
+        // const checkInTimeDate = new Date(record.checkInTime);
+        // const isoTimestamp = get600PM_IST_ISO(checkInTimeDate);
 
-        const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
+        // const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
         
-        record.checkOutTime = isoTimestamp;
-        record.workedHours = hours;
-        record.dailySalary = salary;
-        record.status = hours >= 8 ? 'Full Day' : 'Present';
-        await record.save();
+        // record.checkOutTime = isoTimestamp;
+        // record.workedHours = hours;
+        // record.dailySalary = salary;
+        // record.status = hours >= 8 ? 'Full Day' : 'Present';
+        // await record.save();
       }
     }
   } catch (error) {
@@ -155,16 +160,18 @@ const lazyAutoCheckout = async () => {
       }
 
       if (shouldCheckout) {
-        const checkInTimeDate = new Date(record.checkInTime);
-        const isoTimestamp = get600PM_IST_ISO(checkInTimeDate);
+        // Auto checkout disabled per request
+        // const user = await User.findOne({ employeeId: record.employeeId });
+        // const checkInTimeDate = new Date(record.checkInTime);
+        // const isoTimestamp = get600PM_IST_ISO(checkInTimeDate);
 
-        const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
+        // const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
         
-        record.checkOutTime = isoTimestamp;
-        record.workedHours = hours;
-        record.dailySalary = salary;
-        record.status = hours >= 8 ? 'Full Day' : 'Present';
-        await record.save();
+        // record.checkOutTime = isoTimestamp;
+        // record.workedHours = hours;
+        // record.dailySalary = salary;
+        // record.status = hours >= 8 ? 'Full Day' : 'Present';
+        // await record.save();
       }
     }
   } catch (error) {
@@ -290,8 +297,8 @@ app.post('/api/attendance', async (req, res) => {
       if (currentMins >= 1080) {
          return res.status(400).json({ message: 'Check-in is closed after 6:00 PM. You are marked as absent.' });
       }
-      if (currentMins < 570) {
-         return res.status(400).json({ message: 'Check-in is only available from 9:30 AM onwards.' });
+      if (currentMins < 535) {
+         return res.status(400).json({ message: 'Check-in is only available from 8:55 AM onwards.' });
       }
 
       if (record) return res.status(400).json({ message: 'Already checked in today' });
@@ -317,7 +324,8 @@ app.post('/api/attendance', async (req, res) => {
       const sixPM = new Date(get600PM_IST_ISO(checkInTimeDate));
       if (finalCheckOut > sixPM) finalCheckOut = sixPM;
 
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, finalCheckOut.toISOString());
+      const user = await User.findOne({ employeeId: record.employeeId });
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, finalCheckOut.toISOString(), user?.salary || 0);
 
       record.checkOutTime = finalCheckOut.toISOString();
       record.workedHours = hours;
@@ -339,7 +347,8 @@ app.post('/api/attendance/auto-checkout', async (req, res) => {
 
     let record = await Attendance.findOne({ employeeId, date: today });
     if (record && !record.checkOutTime && record.status === 'Present') {
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp);
+      const user = await User.findOne({ employeeId: record.employeeId });
+      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
       
       record.checkOutTime = isoTimestamp;
       record.workedHours = hours;

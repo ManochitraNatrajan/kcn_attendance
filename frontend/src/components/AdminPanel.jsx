@@ -13,9 +13,9 @@ const AdminPanel = ({ user }) => {
   const [todayRecord, setTodayRecord] = useState(null);
   
   const [showAdd, setShowAdd] = useState(false);
-  const [newEmp, setNewEmp] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
+  const [newEmp, setNewEmp] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee', salary: '' });
   const [editingEmp, setEditingEmp] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
+  const [editForm, setEditForm] = useState({ name: '', employeeId: '', email: '', password: '', role: 'employee', salary: '' });
 
   // Salary Modal State
   const [selectedEmp, setSelectedEmp] = useState(null);
@@ -60,7 +60,7 @@ const AdminPanel = ({ user }) => {
     e.preventDefault();
     try {
       await api.post('/employees', newEmp);
-      setNewEmp({ name: '', employeeId: '', email: '', password: '', role: 'employee' });
+      setNewEmp({ name: '', employeeId: '', email: '', password: '', role: 'employee', salary: '' });
       setShowAdd(false);
       loadData();
       alert('Employee Added successfully!');
@@ -72,7 +72,7 @@ const AdminPanel = ({ user }) => {
   const handleEditClick = (emp, e) => {
     e.stopPropagation();
     setEditingEmp(emp.id);
-    setEditForm({ name: emp.name, employeeId: emp.employeeId, email: emp.email, password: emp.password, role: emp.role || 'employee' });
+    setEditForm({ name: emp.name, employeeId: emp.employeeId, email: emp.email, password: emp.password, role: emp.role || 'employee', salary: emp.salary || '' });
   };
 
   const handleUpdateEmployee = async (e) => {
@@ -128,7 +128,7 @@ const AdminPanel = ({ user }) => {
     const finalRemainder = Math.floor(totalMinutes % 60);
     const exactTotalHours = totalMinutes / 60;
 
-    const totalSalary = totalMinutes * (37.9753 / 60);
+    const totalSalary = totalMinutes * ((emp.salary || 0) / 60);
 
     return { 
       records: empRecords, 
@@ -152,9 +152,45 @@ const AdminPanel = ({ user }) => {
     return emp ? emp.name : 'Unknown';
   };
 
-  let availableMonths = [...new Set(history.map(h => h.date.substring(0, 7)))];
-  if (!availableMonths.includes(currentMonthStr)) availableMonths.push(currentMonthStr);
-  availableMonths.sort().reverse();
+  const generateMonths = () => {
+    const months = [];
+    const now = new Date();
+    
+    let earliestYear = now.getFullYear();
+    let earliestMonth = now.getMonth() + 1;
+
+    if (history && history.length > 0) {
+      const dates = history.map(h => h.date).filter(Boolean).sort();
+      if (dates.length > 0) {
+        const earliestDateStr = dates[0];
+        const [y, m] = earliestDateStr.split('-');
+        earliestYear = parseInt(y, 10);
+        earliestMonth = parseInt(m, 10);
+      }
+    }
+
+    let currentYear = now.getFullYear();
+    let currentMonth = now.getMonth() + 1;
+
+    while (currentYear > earliestYear || (currentYear === earliestYear && currentMonth >= earliestMonth)) {
+      const monthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+      months.push(monthStr);
+      currentMonth--;
+      if (currentMonth === 0) {
+        currentMonth = 12;
+        currentYear--;
+      }
+    }
+    
+    const currentMonthStrLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (!months.includes(currentMonthStrLocal)) {
+       months.unshift(currentMonthStrLocal);
+    }
+    
+    return months;
+  };
+
+  const availableMonths = generateMonths();
 
   const formatMonth = (yyyyMm) => {
     const [year, month] = yyyyMm.split('-');
@@ -275,7 +311,8 @@ const AdminPanel = ({ user }) => {
                          }
                      }
 
-                      let sal = (exactMins * (37.9753 / 60)).toFixed(2);
+                      let empObj = employees.find(e => e.employeeId === rec.employeeId);
+                      let sal = (exactMins * ((empObj?.salary || 0) / 60)).toFixed(2);
 
                      return (
                      <tr key={rec.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -338,9 +375,13 @@ const AdminPanel = ({ user }) => {
                     <label>Email Address</label>
                     <input required type="email" value={newEmp.email} onChange={e => setNewEmp({...newEmp, email: e.target.value})} placeholder="john@kcn.com" />
                   </div>
-                  <div className="input-group" style={{ gridColumn: '1 / -1' }}>
+                  <div className="input-group">
                     <label>Initial Password</label>
                     <input required type="text" value={newEmp.password} onChange={e => setNewEmp({...newEmp, password: e.target.value})} placeholder="password123" />
+                  </div>
+                  <div className="input-group">
+                    <label>Salary Rate (₹/hr)</label>
+                    <input required type="number" step="0.01" value={newEmp.salary} onChange={e => setNewEmp({...newEmp, salary: e.target.value})} placeholder="37.97" />
                   </div>
                 </div>
                 <div className="mt-4 flex gap-4">
@@ -377,10 +418,14 @@ const AdminPanel = ({ user }) => {
                            <label>Email Address</label>
                            <input required type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
                          </div>
-                         <div className="input-group" style={{ gridColumn: '1 / -1' }}>
-                           <label>Password</label>
-                           <input required type="text" value={editForm.password} onChange={e => setEditForm({...editForm, password: e.target.value})} />
-                         </div>
+                         <div className="input-group">
+                            <label>Password</label>
+                            <input required type="text" value={editForm.password} onChange={e => setEditForm({...editForm, password: e.target.value})} />
+                          </div>
+                          <div className="input-group">
+                            <label>Salary Rate (₹/hr)</label>
+                            <input required type="number" step="0.01" value={editForm.salary} onChange={e => setEditForm({...editForm, salary: e.target.value})} />
+                          </div>
                        </div>
                        <div className="mt-4 flex gap-4">
                          <button type="button" className="btn btn-secondary" style={{ width: 'auto' }} onClick={() => setEditingEmp(null)}>Cancel</button>
@@ -398,6 +443,7 @@ const AdminPanel = ({ user }) => {
                         {emp.role === 'admin' && <span style={{ background: 'var(--primary)', color: 'white', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', textTransform: 'uppercase', fontWeight: 'bold', flexShrink: 0 }}>Admin</span>}
                       </div>
                       <div style={{ fontSize: '0.9rem', color: 'var(--secondary-dark)', fontWeight: '600', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.email} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({emp.employeeId})</span></div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 'bold', marginTop: '4px' }}>Salary: ₹{emp.salary || 0} / hr</div>
                     </div>
                     <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
                       <button style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', transition: 'background 0.2s' }} 

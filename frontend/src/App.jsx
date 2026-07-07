@@ -21,6 +21,7 @@ function App() {
     localStorage.removeItem('kcn_user');
   };
 
+
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)' }}>
       <nav style={{ 

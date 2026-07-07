@@ -13,6 +13,7 @@ const CheckInOut = ({ employees }) => {
   const [location, setLocation] = useState(null);
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' }));
   const [isPastSix, setIsPastSix] = useState(false);
+  const [isBefore855, setIsBefore855] = useState(false);
   
   const videoRef = useRef(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -27,6 +28,9 @@ const CheckInOut = ({ employees }) => {
       
       const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
       setIsPastSix(istTime.getHours() >= 18);
+      const hours = istTime.getHours();
+      const minutes = istTime.getMinutes();
+      setIsBefore855(hours < 8 || (hours === 8 && minutes < 55));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -170,23 +174,16 @@ const CheckInOut = ({ employees }) => {
                 </div>
               </div>
             ) : (
-              <button className="btn btn-primary" style={{ fontSize: '1.2rem', padding: '20px', borderRadius: '16px', textTransform: 'uppercase', letterSpacing: '1px' }} onClick={() => handleAction('check-in')} disabled={submitting}>
-                {submitting ? 'Processing...' : 'CONFIRM CHECK IN'}
+              <button className="btn btn-primary" style={{ fontSize: '1.2rem', padding: '20px', borderRadius: '16px', textTransform: 'uppercase', letterSpacing: '1px' }} onClick={() => handleAction('check-in')} disabled={submitting || isBefore855}>
+                {isBefore855 ? 'CHECK IN OPENS 8:55 AM' : (submitting ? 'Processing...' : 'CONFIRM CHECK IN')}
               </button>
             )
           )}
 
           {isCheckedIn && (
-            isPastSix ? (
-               <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '24px', borderRadius: '16px', color: '#065F46', fontWeight: '600', fontSize: '1.1rem' }}>
-                 <CheckCircle2 size={32} style={{ margin: '0 auto 12px' }} />
-                 Completed attendance for today
-               </div>
-            ) : (
               <button className="btn btn-danger" style={{ fontSize: '1.2rem', padding: '20px', borderRadius: '16px', textTransform: 'uppercase', letterSpacing: '1px' }} onClick={() => handleAction('check-out')} disabled={submitting}>
                 {submitting ? 'Processing...' : 'CONFIRM CHECK OUT'}
               </button>
-            )
           )}
 
           {isCheckedOut && (
