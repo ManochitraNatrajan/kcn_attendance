@@ -34,15 +34,10 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 0) => {
   // Reference times
   const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
   const ymd = formatter.format(start);
-  const nineThirtyAM = new Date(`${ymd}T09:30:00+05:30`);
-  const sixPM = new Date(`${ymd}T18:00:00+05:30`);
 
-  // Cap checkOut at 6:00 PM
-  if (end > sixPM) end = sixPM;
-  
-  // Cap checkIn at 8:55 AM
-  const eightFiftyFiveAM = new Date(`${ymd}T08:55:00+05:30`);
-  if (start < eightFiftyFiveAM) start = eightFiftyFiveAM;
+  // Cap checkIn at 9:00 AM
+  const nineAM = new Date(`${ymd}T09:00:00+05:30`);
+  if (start < nineAM) start = nineAM;
 
   const diffMs = end - start;
   let totalMinutes = 0;
@@ -61,30 +56,10 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 0) => {
 };
 
 // Cron Job: Auto-checkout at 6:00 PM daily IST
+// Cron Job: Auto-mark absent at 6:00 PM daily IST
 cron.schedule('0 18 * * *', async () => {
   try {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const isoTimestamp = get600PM_IST_ISO();
-
-    const activeRecords = await Attendance.find({ 
-      date: today, 
-      checkOutTime: { $exists: false },
-      status: 'Present'
-    });
-
-    console.log(`[Cron] Running auto-checkout for ${activeRecords.length} employees at 6:00 PM`);
-
-    for (const record of activeRecords) {
-      // Auto checkout disabled per request
-      // const user = await User.findOne({ employeeId: record.employeeId });
-      // const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
-      
-      // record.checkOutTime = isoTimestamp;
-      // record.workedHours = hours;
-      // record.dailySalary = salary;
-      // record.status = hours >= 8 ? 'Full Day' : 'Present';
-      // await record.save();
-    }
 
     // Auto-mark Absent for ALL users without check-ins today
     const allUsers = await User.find({ role: 'employee' });
@@ -99,85 +74,11 @@ cron.schedule('0 18 * * *', async () => {
       }
     }
   } catch (error) {
-    console.error('[Cron] Error in auto-checkout:', error);
+    console.error('[Cron] Error in auto-absent job:', error);
   }
 }, {
   timezone: "Asia/Kolkata"
 });
-
-// Cron Job: Next Day Start (12:00 AM) auto-checkout failsafe & absent marker
-cron.schedule('0 0 * * *', async () => {
-  try {
-    // This runs exactly at midnight for the previous day effectively, but we fetch any pending from past dates
-    const activeRecords = await Attendance.find({ 
-      checkOutTime: { $exists: false },
-      status: 'Present'
-    });
-
-    if (activeRecords.length > 0) {
-      console.log(`[Cron] Midnight Next-Day auto-checkout catching ${activeRecords.length} employees.`);
-      for (const record of activeRecords) {
-        // Auto checkout disabled per request
-        // const user = await User.findOne({ employeeId: record.employeeId });
-        // const checkInTimeDate = new Date(record.checkInTime);
-        // const isoTimestamp = get600PM_IST_ISO(checkInTimeDate);
-
-        // const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
-        
-        // record.checkOutTime = isoTimestamp;
-        // record.workedHours = hours;
-        // record.dailySalary = salary;
-        // record.status = hours >= 8 ? 'Full Day' : 'Present';
-        // await record.save();
-      }
-    }
-  } catch (error) {
-    console.error('[Cron] Error in midnight auto-checkout:', error);
-  }
-}, {
-  timezone: "Asia/Kolkata"
-});
-
-const lazyAutoCheckout = async () => {
-  try {
-    const activeRecords = await Attendance.find({ 
-      checkOutTime: { $exists: false },
-      status: 'Present'
-    });
-
-    if (activeRecords.length === 0) return;
-
-    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
-    const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-    const todayStr = formatter.format(nowIST);
-
-    for (const record of activeRecords) {
-      let shouldCheckout = false;
-      if (record.date < todayStr) {
-        shouldCheckout = true; // Any past day
-      } else if (record.date === todayStr && (nowIST.getHours() * 60 + nowIST.getMinutes()) >= 1080) {
-        shouldCheckout = true; // Today and past 6:00 PM (1080 mins)
-      }
-
-      if (shouldCheckout) {
-        // Auto checkout disabled per request
-        // const user = await User.findOne({ employeeId: record.employeeId });
-        // const checkInTimeDate = new Date(record.checkInTime);
-        // const isoTimestamp = get600PM_IST_ISO(checkInTimeDate);
-
-        // const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
-        
-        // record.checkOutTime = isoTimestamp;
-        // record.workedHours = hours;
-        // record.dailySalary = salary;
-        // record.status = hours >= 8 ? 'Full Day' : 'Present';
-        // await record.save();
-      }
-    }
-  } catch (error) {
-    console.error('[Lazy AutoCheckout] Error:', error);
-  }
-};
 
 app.post('/api/login', async (req, res) => {
   try {
@@ -232,6 +133,16 @@ app.post('/api/employees', async (req, res) => {
 app.put('/api/employees/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validate salary if present
+    if (req.body.salary !== undefined) {
+      const parsedSalary = parseFloat(req.body.salary);
+      if (isNaN(parsedSalary) || parsedSalary < 0) {
+        return res.status(400).json({ message: 'Salary must be a positive numeric value.' });
+      }
+      req.body.salary = parsedSalary;
+    }
+
     const user = await User.findByIdAndUpdate(id, req.body, { new: true });
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ ...user.toObject(), id: user._id.toString() });
@@ -256,7 +167,6 @@ app.delete('/api/employees/:id', async (req, res) => {
 
 app.get('/api/attendance', async (req, res) => {
   try {
-    await lazyAutoCheckout();
     const attendance = await Attendance.find();
     res.json(attendance);
   } catch (error) {
@@ -266,7 +176,6 @@ app.get('/api/attendance', async (req, res) => {
 
 app.get('/api/attendance/stats', async (req, res) => {
   try {
-    await lazyAutoCheckout();
     const today = new Date().toISOString().split('T')[0];
     const empsCount = await User.countDocuments();
     const presentCount = await Attendance.countDocuments({ date: today });
@@ -321,8 +230,7 @@ app.post('/api/attendance', async (req, res) => {
       }
 
       let finalCheckOut = new Date(timestamp);
-      const sixPM = new Date(get600PM_IST_ISO(checkInTimeDate));
-      if (finalCheckOut > sixPM) finalCheckOut = sixPM;
+
 
       const user = await User.findOne({ employeeId: record.employeeId });
       const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, finalCheckOut.toISOString(), user?.salary || 0);
@@ -339,28 +247,7 @@ app.post('/api/attendance', async (req, res) => {
   }
 });
 
-app.post('/api/attendance/auto-checkout', async (req, res) => {
-  try {
-    const { employeeId } = req.body;
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const isoTimestamp = get600PM_IST_ISO();
 
-    let record = await Attendance.findOne({ employeeId, date: today });
-    if (record && !record.checkOutTime && record.status === 'Present') {
-      const user = await User.findOne({ employeeId: record.employeeId });
-      const { hours, salary } = calculateWorkedHoursAndSalary(record.checkInTime, isoTimestamp, user?.salary || 0);
-      
-      record.checkOutTime = isoTimestamp;
-      record.workedHours = hours;
-      record.dailySalary = salary;
-      record.status = hours >= 8 ? 'Full Day' : 'Present';
-      await record.save();
-    }
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // Serve static files from the local dist directory
 const distPath = path.join(__dirname, 'dist');

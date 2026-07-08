@@ -111,11 +111,6 @@ const AdminPanel = ({ user }) => {
 
           if (end < start) end = start;
 
-          const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
-          const ymd = formatter.format(start);
-          const sixPM = new Date(`${ymd}T18:00:00+05:30`);
-          if (end > sixPM) end = sixPM;
-          
           const diffMs = end - start;
           if (diffMs > 0) {
               const actualMinutes = Math.floor(diffMs / (1000 * 60));
@@ -296,11 +291,6 @@ const AdminPanel = ({ user }) => {
 
                          if (end < start) end = start;
 
-                         const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
-                         const ymd = formatter.format(start);
-                         const sixPM = new Date(`${ymd}T18:00:00+05:30`);
-                         if (end > sixPM) end = sixPM;
-                         
                          const diffMs = end - start;
                          if (diffMs > 0) {
                              const actualMinutes = Math.floor(diffMs / (1000 * 60));
@@ -548,7 +538,7 @@ const AdminPanel = ({ user }) => {
                       </div>
 
                       <div style={{ background: '#EFF6FF', padding: '16px', borderRadius: '12px', color: '#1E40AF', fontSize: '0.85rem', borderLeft: '4px solid #3B82F6', marginBottom: '24px' }}>
-                        <strong>Policy:</strong> Calculated strictly based on worked minutes x (37.9753 / 60), capped at 6 PM.
+                        <strong>Policy:</strong> Calculated strictly based on worked minutes × (Hourly Rate / 60).
                       </div>
 
                      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>Attendance Logs</h3>
@@ -569,11 +559,6 @@ const AdminPanel = ({ user }) => {
                                const start = new Date(rec.checkInTime);
                                let end = new Date(rec.checkOutTime);
                                if (end < start) end = start;
-                               const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
-                               const ymd = formatter.format(start);
-                               const sixPM = new Date(`${ymd}T18:00:00+05:30`);
-                               if (end > sixPM) end = sixPM;
-                               
                                const diffMs = end - start;
                                if (diffMs > 0) {
                                    const actualMinutes = Math.floor(diffMs / (1000 * 60));
