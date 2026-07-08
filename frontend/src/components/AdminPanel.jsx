@@ -122,8 +122,8 @@ const AdminPanel = ({ user }) => {
     const finalBaseHours = Math.floor(totalMinutes / 60);
     const finalRemainder = Math.floor(totalMinutes % 60);
     const exactTotalHours = totalMinutes / 60;
-
-    const totalSalary = totalMinutes * ((emp.salary || 0) / 60);
+    
+    const totalSalary = totalMinutes * (emp.salary || 0);
 
     return { 
       records: empRecords, 
@@ -302,7 +302,7 @@ const AdminPanel = ({ user }) => {
                      }
 
                       let empObj = employees.find(e => e.employeeId === rec.employeeId);
-                      let sal = (exactMins * ((empObj?.salary || 0) / 60)).toFixed(2);
+                      let sal = (exactMins * (empObj?.salary || 0)).toFixed(2);
 
                      return (
                      <tr key={rec.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -341,11 +341,19 @@ const AdminPanel = ({ user }) => {
                 <Plus size={20} style={{ marginRight: '6px' }} /> ADD NEW EMPLOYEE
               </button>
             </div>
+
+            {!showAdd && (
+              <div className="mobile-stack mb-4" style={{ justifyContent: 'flex-end' }}>
+                <select className="card" style={{ margin: 0, padding: '10px 16px', fontWeight: 'bold', fontSize: '0.9rem', border: '2px solid var(--primary)', outline: 'none', width: '100%', maxWidth: '240px' }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
+                  {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
+                </select>
+              </div>
+            )}
             
             {showAdd && (
               <form className="card" onSubmit={handleAddEmployee} style={{ borderTop: '4px solid var(--secondary)', background: '#F8FAFC' }}>
                 <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Create Employee Profile</h3>
-                <div className="mobile-stack">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                   <div className="input-group">
                     <label>Full Name</label>
                     <input required value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} placeholder="John Doe" />
@@ -370,8 +378,8 @@ const AdminPanel = ({ user }) => {
                     <input required type="text" value={newEmp.password} onChange={e => setNewEmp({...newEmp, password: e.target.value})} placeholder="password123" />
                   </div>
                   <div className="input-group">
-                    <label>Salary Rate (₹/hr)</label>
-                    <input required type="number" step="0.01" value={newEmp.salary} onChange={e => setNewEmp({...newEmp, salary: e.target.value})} placeholder="37.97" />
+                    <label>Salary Rate (₹/min)</label>
+                    <input required type="number" step="any" value={newEmp.salary} onChange={e => setNewEmp({...newEmp, salary: e.target.value})} placeholder="0.63" />
                   </div>
                 </div>
                 <div className="mt-4 flex gap-4">
@@ -384,6 +392,7 @@ const AdminPanel = ({ user }) => {
             <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '12px', WebkitOverflowScrolling: 'touch' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', minWidth: 'min-content' }}>
               {employees.map(emp => {
+                 const salInfo = calculateSalary(emp, selectedMonth);
                  if (editingEmp === emp.id) {
                    return (
                      <form className="card" key={emp.id} onSubmit={handleUpdateEmployee} style={{ borderTop: '4px solid var(--primary)', background: '#F8FAFC', margin: 0 }}>
@@ -413,8 +422,8 @@ const AdminPanel = ({ user }) => {
                             <input required type="text" value={editForm.password} onChange={e => setEditForm({...editForm, password: e.target.value})} />
                           </div>
                           <div className="input-group">
-                            <label>Salary Rate (₹/hr)</label>
-                            <input required type="number" step="0.01" value={editForm.salary} onChange={e => setEditForm({...editForm, salary: e.target.value})} />
+                            <label>Salary Rate (₹/min)</label>
+                            <input required type="number" step="any" value={editForm.salary} onChange={e => setEditForm({...editForm, salary: e.target.value})} />
                           </div>
                        </div>
                        <div className="mt-4 flex gap-4">
@@ -433,7 +442,10 @@ const AdminPanel = ({ user }) => {
                         {emp.role === 'admin' && <span style={{ background: 'var(--primary)', color: 'white', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', textTransform: 'uppercase', fontWeight: 'bold', flexShrink: 0 }}>Admin</span>}
                       </div>
                       <div style={{ fontSize: '0.9rem', color: 'var(--secondary-dark)', fontWeight: '600', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.email} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({emp.employeeId})</span></div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 'bold', marginTop: '4px' }}>Salary: ₹{emp.salary || 0} / hr</div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 'bold', marginTop: '4px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                        <span>Per Minute Rate: ₹{emp.salary || 0}</span>
+                        <span style={{ color: 'var(--primary)' }}>Total ({formatMonth(selectedMonth)}): ₹{salInfo.totalSalary}</span>
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
                       <button style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', transition: 'background 0.2s' }} 
@@ -527,6 +539,10 @@ const AdminPanel = ({ user }) => {
                   return (
                     <div>
                       <div className="mobile-stack mb-6">
+                        <div style={{ flex: 1, background: '#F1F5F9', color: 'var(--text-main)', padding: '16px', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 'bold' }}>Per Minute Rate (₹)</div>
+                          <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--primary)' }}>{selectedEmp?.salary || 0}</div>
+                        </div>
                         <div style={{ flex: 1, background: 'var(--primary)', color: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center' }}>
                           <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Total Time</div>
                           <div style={{ fontSize: '1.75rem', fontWeight: '900' }}>{sal.formattedTotalTime}</div>
@@ -538,7 +554,7 @@ const AdminPanel = ({ user }) => {
                       </div>
 
                       <div style={{ background: '#EFF6FF', padding: '16px', borderRadius: '12px', color: '#1E40AF', fontSize: '0.85rem', borderLeft: '4px solid #3B82F6', marginBottom: '24px' }}>
-                        <strong>Policy:</strong> Calculated strictly based on worked minutes × (Hourly Rate / 60).
+                        <strong>Policy:</strong> Calculated strictly based on worked minutes × Per Minute Rate.
                       </div>
 
                      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>Attendance Logs</h3>
@@ -550,29 +566,39 @@ const AdminPanel = ({ user }) => {
                              <th style={{ padding: '12px' }}>In</th>
                              <th style={{ padding: '12px' }}>Out</th>
                              <th style={{ padding: '12px', color: 'var(--primary)' }}>Hrs</th>
+                             <th style={{ padding: '12px', color: 'var(--success)' }}>Earned</th>
                            </tr>
                          </thead>
                          <tbody>
                            {sal.records.map((rec, i) => {
                              let hrs = '--';
+                             let dailySalStr = '--';
+                             let actualMinutesForDay = 0;
                              if (rec.checkInTime && rec.checkOutTime) {
                                const start = new Date(rec.checkInTime);
                                let end = new Date(rec.checkOutTime);
                                if (end < start) end = start;
                                const diffMs = end - start;
                                if (diffMs > 0) {
-                                   const actualMinutes = Math.floor(diffMs / (1000 * 60));
-                                   const baseHours = Math.floor(actualMinutes / 60);
-                                   const remainder = Math.floor(actualMinutes % 60);
+                                   actualMinutesForDay = Math.floor(diffMs / (1000 * 60));
+                                   const baseHours = Math.floor(actualMinutesForDay / 60);
+                                   const remainder = Math.floor(actualMinutesForDay % 60);
                                    hrs = `${baseHours} hours ${remainder} minutes`;
                                }
                              }
+                             
+                             const salForDay = actualMinutesForDay * (selectedEmp?.salary || 0);
+                             if (salForDay > 0 || (rec.checkInTime && rec.checkOutTime)) {
+                               dailySalStr = `Rs. ${salForDay.toFixed(2)}`;
+                             }
+                             
                              return (
                                <tr key={rec.id} style={{ borderBottom: i === sal.records.length - 1 ? 'none' : '1px solid var(--border)' }}>
                                  <td style={{ padding: '12px', fontSize: '0.85rem' }}>{new Date(rec.date).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', month:'short', day:'numeric'})}</td>
                                  <td style={{ padding: '12px', color: 'var(--success)', fontSize: '0.85rem' }}>{new Date(rec.checkInTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour:'2-digit', minute:'2-digit', hour12: true})}</td>
                                  <td style={{ padding: '12px', color: 'var(--secondary-dark)', fontSize: '0.85rem' }}>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour:'2-digit', minute:'2-digit', hour12: true}) : 'Active'}</td>
                                  <td style={{ padding: '12px', fontWeight: '800', fontSize: '0.85rem' }}>{hrs}</td>
+                                 <td style={{ padding: '12px', fontWeight: '800', fontSize: '0.85rem', color: 'var(--success)' }}>{dailySalStr}</td>
                                </tr>
                              )
                            })}

@@ -23,7 +23,7 @@ const get600PM_IST_ISO = (dateRef = new Date()) => {
   return new Date(`${ymd}T18:00:00+05:30`).toISOString();
 };
 
-const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 0) => {
+const calculateWorkedHoursAndSalary = (checkIn, checkOut, minuteRate = 0) => {
   let start = new Date(checkIn);
   let end = new Date(checkOut);
   
@@ -45,7 +45,7 @@ const calculateWorkedHoursAndSalary = (checkIn, checkOut, hourlyRate = 0) => {
      totalMinutes = Math.floor(diffMs / (1000 * 60));
   }
   
-  let salary = totalMinutes * (hourlyRate / 60);
+  let salary = totalMinutes * minuteRate;
   
   const finalHours = totalMinutes / 60;
   
