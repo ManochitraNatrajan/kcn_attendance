@@ -1,6 +1,6 @@
 [build]
   base = "frontend"
-  publish = "dist"
+  publish = "../backend/dist"
   command = "npm run build"
 
 # This automatically handles the proxy and routing from the root
